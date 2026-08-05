@@ -189,11 +189,10 @@ a { color: var(--sky-deep); }
   background: #0a1a26;
 }
 
-/* Once it is playing the video is the point: the hero grows to a
-   comfortable viewing height and the scrim lifts, so nobody watches a
-   film through a dark sheet with a headline across it. */
-.hero.playing { min-height: min(72vh, 620px); }
-.hero.playing .film { object-fit: contain; background: #000; }
+/* NOTHING CHANGES WHEN IT STARTS. The still is the film's own first
+   frame at the same scale, so playing is the picture coming to life
+   rather than a layout event — no resize, no controls appearing, no
+   scrim lifting under the headline. */
 
 .scrim {
   position: absolute;
@@ -212,75 +211,64 @@ a { color: var(--sky-deep); }
 }
 .hero.playing .scrim { opacity: 0; }
 
-/* The play control. Disabled until canplaythrough, so pressing it always
-   does what it looks like it will do rather than giving a frozen frame
-   and no explanation. */
-.play {
-  margin-top: 22px;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 26px 13px 20px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
-  color: var(--ink);
-  font: inherit;
-  font-weight: 650;
-  font-size: 16.5px;
-  cursor: pointer;
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.34);
-  transition: transform 140ms ease, background 140ms ease, opacity 200ms ease;
-}
-.play:hover:not(:disabled) { transform: translateY(-1px); background: #fff; }
-.play:disabled {
-  cursor: progress;
-  background: rgba(255, 255, 255, 0.42);
-  color: rgba(255, 255, 255, 0.92);
-  box-shadow: none;
-}
-.play .glyph { font-size: 18px; line-height: 1; }
+/* NO PLAY BUTTON. The whole hero is the target: a click anywhere in it,
+   or three seconds of hover, starts the film. A call-to-action pinned
+   under the headline made the hero look like a landing page selling
+   something. */
+.hero { cursor: pointer; }
 
+/* MOTION IS A PREFERENCE. Somebody who has asked their system for
+   reduced motion should not have a video start under their cursor
+   because they paused there — the poster frame stays, which is a
+   perfectly good hero, and a click still starts it deliberately. */
 @media (prefers-reduced-motion: reduce) {
-  .play, .scrim { transition: none; }
+  .scrim { transition: none; }
 }
 
+/* A PANEL, NOT RAW TEXT ON A PICTURE. The headline used to float
+   directly over the video, which is why it read as pasted on: nothing
+   connected it to what was behind it. Slight transparency and a soft
+   shadow make it sit IN the image — the film shows through it, and the
+   shadow gives it somewhere to sit. */
 .heroinner {
   position: relative;
   z-index: 1;
   max-width: 1080px;
   width: 100%;
   margin: 0 auto;
-  padding: 72px 24px 40px;
+  padding: 0 24px 40px;
   color: #fff;
+}
+
+.heroinner h1 {
+  display: inline-block;
+  padding: 18px 28px 20px;
+  border-radius: 16px;
+  background: rgba(10, 24, 34, 0.34);
+  backdrop-filter: blur(10px) saturate(130%);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34),
+              inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 /* NO text-shadow. The scrim behind the type is what makes it readable —
    a shadow on top of that is the belt-and-braces move that reads as a
    default theme, and it muddies the letterforms it is meant to help. */
+/* SMALLER THAN IT WAS. This used to be the club's full name at 68px,
+   directly under a header already carrying the same words — twice over
+   and shouting. It is the tagline now, and its job is to sit in the
+   picture rather than cover it. */
 .hero h1 {
   font-family: var(--display);
-  font-size: clamp(36px, 6.4vw, 68px);
-  line-height: 0.98;
+  font-size: clamp(26px, 3.6vw, 40px);
+  line-height: 1.05;
   /* Tight. A geometric display face is drawn to sit close, and this is
      most of the difference between "modern" and "bold system font". */
-  letter-spacing: -0.035em;
+  letter-spacing: -0.028em;
   font-weight: 600;
-  margin: 0 0 14px;
-  text-wrap: balance;
-  max-width: 16ch;
-}
-
-.hero .tagline {
   margin: 0;
-  font-size: clamp(16px, 1.8vw, 19px);
-  color: rgba(255, 255, 255, 0.82);
-  font-weight: 450;
-  /* Set against the headline rather than with it: wide tracking and
-     small caps give the two lines completely different jobs, so the
-     eye does not read them as one lump. */
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  text-wrap: balance;
+  max-width: 20ch;
 }
 
 /* ---- layout ---------------------------------------------------------- */
@@ -364,11 +352,13 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   position: relative;
   flex: 0 0 100%;
   scroll-snap-align: center;
-  /* 4:5 — portrait-leaning, because posters are the commonest thing this
-     club posts and a landscape frame wastes most of its area on backdrop
-     for them. Landscape photographs still show whole, just with more
-     blur above and below. */
-  aspect-ratio: 4 / 5;
+  /* 16:10. The frame was 4:5 — portrait — on the reasoning that posters
+     are the commonest thing posted, and it made every card a tall
+     letterbox that pushed the caption off the screen. A club's page is
+     mostly aeroplanes against sky, which is a landscape subject; the
+     posters still show whole, with more backdrop at the sides, which is
+     the cheaper compromise of the two. */
+  aspect-ratio: 16 / 10;
   overflow: hidden;
 }
 
@@ -513,6 +503,92 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* ---- Impressionen: the picture wall ---------------------------------- */
+/* FULL PAGE WIDTH AND NOT A CAROUSEL. The reference site put its gallery
+   in one, which means seeing forty pictures costs forty clicks and you
+   can never see two at once.
+ *
+ * CSS multi-column rather than grid: columns fill top-to-bottom, so
+ * every picture keeps its own shape and the columns simply come out
+ * different lengths. A grid would have to impose a cell shape, which
+ * means cropping — the mistake the post carousel already made once. */
+
+main.wide { max-width: 1600px; }
+
+.gallery { padding-top: 36px; }
+.gallery h1 {
+  font-family: var(--display);
+  font-size: clamp(30px, 4.4vw, 44px);
+  font-weight: 600;
+  letter-spacing: -0.032em;
+  margin: 0 0 26px;
+}
+
+.wall {
+  columns: 4 300px;
+  column-gap: 14px;
+}
+
+.tile {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  /* break-inside is what stops a picture being sliced across a column
+     boundary — the single thing that makes multi-column usable for
+     images at all. */
+  break-inside: avoid;
+  margin: 0 0 14px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.tile img { width: 100%; height: auto; display: block; }
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(6, 14, 20, 0.94);
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.lightbox .close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+.lightbox .close:hover { background: rgba(255, 255, 255, 0.26); }
+
+@media (max-width: 780px) {
+  .wall { columns: 2 150px; column-gap: 10px; }
+  .tile { margin-bottom: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile { transition: none; }
 }
 
 /* ---- static pages ---------------------------------------------------- */

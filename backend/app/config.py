@@ -37,6 +37,11 @@ class Page:
     body: str
     nav: bool = False
     footer: bool = False
+    #: "page" renders the Markdown below; "gallery" renders every picture
+    #: the club has published. Kept in the CONFIGURATION rather than as a
+    #: hard-coded route, so what the site is made of stays one file's
+    #: business - which is the whole design.
+    kind: str = "page"
 
 
 @dataclass(frozen=True)
@@ -133,9 +138,11 @@ def load(path: str | None = None) -> Config:
         slug = str(entry.get("slug", "")).strip()
         if not slug:
             raise RuntimeError(f"{file}: a [[pages]] entry has no slug")
+        kind = str(entry.get("kind", "page")).strip() or "page"
         rel = str(entry.get("file", "")).strip()
         body = ""
-        if rel:
+        # A gallery has no Markdown file, so it is not missing one.
+        if rel and kind == "page":
             source = root / rel
             if not source.is_file():
                 # A MISSING PAGE FILE IS A REFUSAL, not an empty page.
@@ -153,6 +160,7 @@ def load(path: str | None = None) -> Config:
             body=body,
             nav=bool(entry.get("nav", False)),
             footer=bool(entry.get("footer", False)),
+            kind=kind,
         ))
 
     return Config(

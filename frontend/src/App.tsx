@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { marked } from "marked";
 import Carousel from "./Carousel";
+import Gallery from "./Gallery";
 import { api, type FeedItem, type PageContent, type Site } from "./api";
 
 /** THE DATE, PINNED. `toLocaleDateString()` follows whatever locale the
@@ -139,61 +140,75 @@ function Post({ item }: { item: FeedItem }) {
  *  never empty while 15 MB arrives. */
 function Hero({ site }: { site: Site | null }) {
   const video = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
 
+  /** The BACKGROUND becomes the film. Nothing moves, nothing resizes,
+   *  no control appears — the still is the video's own first frame, so
+   *  starting it is the picture coming to life at exactly the scale it
+   *  already occupied.
+   *
+   *  MUTED, AND THAT IS NOT TIMIDITY. A hover is not a user gesture as
+   *  far as a browser is concerned, so an unmuted play() on hover is
+   *  simply refused and the visitor gets a still picture and no reason
+   *  why. Muted always plays. It is also the only defensible behaviour
+   *  for something that starts by itself: a page that begins talking
+   *  because a cursor rested on it is a page people close. */
   const start = () => {
     const el = video.current;
-    if (!el) return;
-    // play() returns a promise that REJECTS if the browser refuses —
-    // which it does, with sound, in more situations than the spec makes
-    // obvious. Swallowing it silently would leave the overlay gone and
-    // nothing playing, so the overlay only goes once playback started.
-    el.play()
-      .then(() => setPlaying(true))
-      .catch(() => setPlaying(false));
+    if (!el || !el.paused) return;
+    el.play().catch(() => {
+      /* Refused — the poster frame stays, which is a perfectly good
+         hero. Nothing to report and nothing the visitor can do. */
+    });
   };
 
+  // THREE SECONDS OF HOVER, cancelled the moment the pointer leaves.
+  // Without the cancel, sweeping the cursor across the page on the way
+  // to the navigation would start the film three seconds later, from
+  // somewhere else entirely.
+  const hoverIn = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(start, 3000);
+  };
+  const hoverOut = () => window.clearTimeout(timer.current);
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
   return (
-    <section className={playing ? "hero playing" : "hero"}>
+    <section
+      className="hero"
+      onClick={start}
+      onMouseEnter={hoverIn}
+      onMouseLeave={hoverOut}
+    >
       <video
         ref={video}
         className="film"
         src="/vfm-hero.mp4"
         poster="/vfm-hero.jpg"
-        // Eager: the shepherd's call, and the reason the button can
-        // promise to work when it lights up.
         preload="auto"
-        // playsInline stops iOS taking the video fullscreen on play,
-        // which would throw the visitor out of the page entirely.
+        muted
+        loop
+        // playsInline stops iOS taking the video fullscreen the instant
+        // it plays, which would throw the visitor out of the page.
         playsInline
-        controls={playing}
-        onCanPlayThrough={() => setReady(true)}
-        onEnded={() => setPlaying(false)}
+        // It is scenery. Announcing it, or letting the tab key land on
+        // it, offers a control that does nothing anybody needs.
+        aria-hidden="true"
+        tabIndex={-1}
       />
 
-      <div className="scrim" aria-hidden={playing} />
+      <div className="scrim" aria-hidden="true" />
 
-      {!playing && (
-        <div className="heroinner">
-          <h1>{site?.title ?? "Verein für Modellflug Stutensee"}</h1>
-          {site?.tagline && <p className="tagline">{site.tagline}</p>}
-
-          <button
-            className="play"
-            onClick={start}
-            disabled={!ready}
-            aria-label={
-              ready ? "Video abspielen" : "Video wird geladen"
-            }
-          >
-            <span className="glyph" aria-hidden="true">
-              {ready ? "▶" : "…"}
-            </span>
-            <span>{ready ? "Film ansehen" : "Lädt…"}</span>
-          </button>
-        </div>
-      )}
+      <div className="heroinner">
+        {/* THE CLUB'S NAME IS NOT REPEATED HERE. It is in the header,
+            which is sticky and therefore on screen at every scroll
+            position — printing it again immediately underneath, at
+            three times the size, said the same thing twice and made the
+            hero shout. The tagline carries the page's one h1; the
+            identity is where it already was. */}
+        <h1>{site?.tagline || site?.title || "RC-Modellflug in Stutensee"}</h1>
+      </div>
     </section>
   );
 }
@@ -239,20 +254,40 @@ function Feed({ site }: { site: Site | null }) {
   );
 }
 
-function StaticPage() {
+function StaticPage({ site }: { site: Site | null }) {
   const { slug = "" } = useParams();
   const [page, setPage] = useState<PageContent | null>(null);
   const [missing, setMissing] = useState(false);
 
+  // WHICH KIND OF PAGE THIS IS COMES FROM THE CONFIGURATION, carried on
+  // the nav entry — so adding a gallery is a config change and a
+  // restart rather than a new route compiled into this bundle.
+  const entry = [...(site?.nav ?? []), ...(site?.footer ?? [])].find(
+    (l) => l.slug === slug,
+  );
+  const isGallery = entry?.kind === "gallery";
+
   useEffect(() => {
     setPage(null);
     setMissing(false);
-    api
-      .page(slug)
-      .then(setPage)
-      .catch(() => setMissing(true));
+    // A gallery has no Markdown to fetch; asking for it would 404 and
+    // render "Seite nicht gefunden" over a perfectly good wall.
+    if (!isGallery) {
+      api
+        .page(slug)
+        .then(setPage)
+        .catch(() => setMissing(true));
+    }
     window.scrollTo(0, 0);
-  }, [slug]);
+  }, [slug, isGallery]);
+
+  if (isGallery) {
+    return (
+      <main className="wide">
+        <Gallery title={entry?.title ?? "Impressionen"} />
+      </main>
+    );
+  }
 
   return (
     <main>
@@ -323,7 +358,7 @@ function Shell({ site }: { site: Site | null }) {
 
       <Routes>
         <Route path="/" element={<Feed site={site} />} />
-        <Route path="/:slug" element={<StaticPage />} />
+        <Route path="/:slug" element={<StaticPage site={site} />} />
       </Routes>
 
       <Dock site={site} />

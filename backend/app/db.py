@@ -293,6 +293,81 @@ def feed(*, workspace: str, platforms: list[str], accounts: list[str],
         return items
 
 
+#: EVERY PICTURE THE CLUB HAS PUBLISHED — and deliberately NOT every
+#: picture in the media library.
+#:
+#: The library is the workspace's whole store: drafts nobody approved,
+#: rejected takes, things uploaded and never used. A public gallery
+#: reading from it would quietly put all of that on the internet, and it
+#: would look like a feature rather than a leak. So this walks the same
+#: path the feed does - published platform posts, on the configured
+#: accounts - and collects what those posts actually SHOWED.
+#:
+#: DISTINCT ON because one photograph attached to a post that went to
+#: several accounts appears once per account, and a gallery that repeats
+#: the same aeroplane four times looks broken.
+_GALLERY_SQL = """
+SELECT DISTINCT ON (ma.id)
+    ma.id         AS asset_id,
+    ma.file       AS path,
+    ma.media_type AS kind,
+    ma.width      AS width,
+    ma.height     AS height,
+    ma.thumbnail  AS thumbnail,
+    pm.alt_text   AS alt_text,
+    pp.published_at AS published_at
+FROM composer_platform_post pp
+JOIN composer_post p
+  ON p.id = pp.post_id
+JOIN social_accounts_social_account sa
+  ON sa.id = pp.social_account_id
+JOIN composer_post_media pm
+  ON pm.post_id = p.id
+JOIN media_library_media_asset ma
+  ON ma.id = pm.media_asset_id
+WHERE pp.status = 'published'
+  AND p.workspace_id = %(workspace)s
+  AND sa.platform = ANY(%(platforms)s)
+  AND (%(accounts)s::uuid[] IS NULL
+       OR cardinality(%(accounts)s::uuid[]) = 0
+       OR sa.id = ANY(%(accounts)s::uuid[]))
+  -- Stills only. A video in a photo grid is a black rectangle.
+  AND ma.media_type IN ('image', 'gif')
+-- DISTINCT ON requires the distinct key to lead the ordering; the useful
+-- order is applied after the rows come back.
+ORDER BY ma.id, pp.published_at DESC NULLS LAST
+"""
+
+
+def gallery(*, workspace: str, platforms: list[str],
+            accounts: list[str]) -> list[Media]:
+    """Every published picture, newest first."""
+    with pool().connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(_GALLERY_SQL, {
+            "workspace": uuid.UUID(workspace),
+            "platforms": platforms,
+            "accounts": [uuid.UUID(a) for a in accounts],
+        })
+        rows = cur.fetchall()
+
+    # Newest first, done HERE because the query's ORDER BY belongs to
+    # DISTINCT ON. None sorts last rather than raising on the comparison.
+    rows.sort(key=lambda r: (r["published_at"] is not None,
+                             r["published_at"]), reverse=True)
+
+    return [
+        Media(
+            path=row["path"] or "",
+            kind=row["kind"] or "",
+            width=row["width"] or 0,
+            height=row["height"] or 0,
+            alt=row["alt_text"] or "",
+            thumbnail=row["thumbnail"] or "",
+        )
+        for row in rows
+    ]
+
+
 def health() -> dict[str, Any]:
     """Can the database be reached, and is the connection really read only?
 

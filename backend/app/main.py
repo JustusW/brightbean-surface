@@ -56,12 +56,16 @@ def site() -> dict:
         "title": cfg.title,
         "locale": cfg.locale,
         "tagline": cfg.tagline,
+        # `kind` travels with each entry so the frontend knows which
+        # pages are Markdown and which are the gallery, without a route
+        # table compiled into the bundle that has to be kept in step
+        # with the configuration by hand.
         "nav": [
-            {"slug": p.slug, "title": p.title}
+            {"slug": p.slug, "title": p.title, "kind": p.kind}
             for p in cfg.pages if p.nav
         ],
         "footer": [
-            {"slug": p.slug, "title": p.title}
+            {"slug": p.slug, "title": p.title, "kind": p.kind}
             for p in cfg.pages if p.footer
         ],
     }
@@ -119,6 +123,42 @@ def feed(limit: int | None = None) -> dict:
                 ],
             }
             for item in items
+        ],
+    }
+
+
+@app.get("/api/gallery")
+def gallery() -> dict:
+    """Every picture the club has published.
+
+    NOT the media library. See the comment on _GALLERY_SQL: the library
+    holds drafts, rejects and unused uploads, and a public gallery
+    reading from it would put those on the internet in a way that looked
+    like a feature.
+    """
+    cfg = config()
+    try:
+        media = db.gallery(
+            workspace=cfg.workspace,
+            platforms=cfg.platforms,
+            accounts=cfg.accounts,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The gallery is temporarily unavailable.",
+        ) from exc
+
+    return {
+        "images": [
+            {
+                "url": cfg.media_url(m.path),
+                "thumbnail": cfg.media_url(m.thumbnail),
+                "width": m.width,
+                "height": m.height,
+                "alt": m.alt,
+            }
+            for m in media
         ],
     }
 

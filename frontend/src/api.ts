@@ -11,6 +11,10 @@
 export interface SiteLink {
   slug: string;
   title: string;
+  /** "page" renders Markdown, "gallery" renders every published picture.
+   *  It travels with the link so the frontend needs no route table of
+   *  its own to keep in step with the configuration. */
+  kind?: string;
 }
 
 export interface Site {
@@ -68,6 +72,7 @@ async function get<T>(path: string): Promise<T> {
 
 export const api = {
   site: () => get<Site>("/api/site"),
+  gallery: () => get<{ images: FeedMedia[] }>("/api/gallery"),
   feed: (limit?: number) =>
     get<{ items: FeedItem[] }>(
       limit ? `/api/feed?limit=${limit}` : "/api/feed",
