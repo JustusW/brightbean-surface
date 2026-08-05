@@ -160,6 +160,8 @@ class Member(Base):
         back_populates="member", cascade="all, delete-orphan")
     sessions: Mapped[list["Session"]] = relationship(
         back_populates="member", cascade="all, delete-orphan")
+    tokens: Mapped[list["Token"]] = relationship(
+        back_populates="member", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Member {self.email}>"
@@ -249,3 +251,64 @@ class Session(Base):
 
     def __repr__(self) -> str:
         return f"<Session {self.id[:8]}… member={self.member_id}>"
+
+
+class Token(Base):
+    """A one-time link sent to somebody's mailbox.
+
+    TWO PURPOSES, ONE TABLE, and that is a judgement rather than
+    laziness: proving an address and resetting a password are the same
+    mechanism — put a secret in a mailbox, and let whoever can read that
+    mailbox present it back. Two tables would be the same five columns
+    twice, and the second copy is where they drift.
+
+    STORED AS A HASH, WHICH IS THE ONE PLACE THIS DIFFERS FROM Session.
+    A session id is stored raw, because it is compared against a cookie
+    on every request and the database holding it is the same database
+    that would be lost anyway. These are different in a way that
+    matters: a token TRAVELS THROUGH EMAIL, so it comes to rest in
+    mailboxes and mail logs, and a reset token is a full account
+    takeover — it can set a password on an account that never had one.
+    Keeping only sha256 of it means a copy of this table is not a set of
+    working links.
+
+    Which also means the secret exists exactly once, in the message. We
+    cannot re-send a lost one, only issue another. That is correct.
+
+    NO `used_at`. A spent token is DELETED, so it refers to nothing —
+    the same reason signing out deletes the session row rather than
+    flagging it. A flag is a thing that can be read wrongly; a missing
+    row cannot be.
+    """
+
+    __tablename__ = "token"
+
+    #: sha256, hex, of the secret that travelled in the link. 64
+    #: characters exactly, and never the secret itself.
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("member.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+
+    #: "verify" or "reset". A short string rather than an enum type,
+    #: because adding a third purpose should not need a migration that
+    #: alters a type in PostgreSQL — and the set of valid values is
+    #: enforced where they are issued, in one function.
+    purpose: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+    #: Indexed because expired tokens are swept by a query on it — and
+    #: checked on use as well, since a sweep is housekeeping and this is
+    #: the rule.
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True)
+
+    member: Mapped[Member] = relationship(back_populates="tokens")
+
+    def __repr__(self) -> str:
+        # The stored value is already a hash, so this leaks nothing that
+        # could be presented back — but it is still half a credential's
+        # fingerprint, so only the front of it appears.
+        return f"<Token {self.purpose} {self.id[:8]}…>"
