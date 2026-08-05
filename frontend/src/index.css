@@ -1,0 +1,197 @@
+/* The club's website.
+ *
+ * READ ON A PHONE, AT A FLYING FIELD, IN SUNLIGHT, BY PEOPLE WHOSE EYES
+ * ARE NOT WHAT THEY WERE. That decides most of what is below: a base
+ * size of 18px rather than 16, real contrast rather than grey-on-grey,
+ * and tap targets that a thumb can hit. None of it should be quietly
+ * shrunk later to fit more in.
+ *
+ * No framework. Eight pages and a feed do not need one, and every
+ * kilobyte here is downloaded over a rural mobile connection.
+ */
+
+:root {
+  /* Sky and airfield, not corporate blue. */
+  --ink: #16202b;
+  --muted: #5c6b7a;
+  --line: #dde3e9;
+  --paper: #ffffff;
+  --wash: #f4f7fa;
+  --sky: #1d6fa5;
+  --sky-dark: #14507a;
+
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-size: 18px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; line-height: 1.6; }
+
+img { max-width: 100%; height: auto; display: block; }
+
+a { color: var(--sky-dark); }
+
+/* VISIBLE FOCUS, EVERYWHERE. Removing the outline is the single most
+   common way a site becomes unusable from a keyboard, and it is done
+   for looks. This one is deliberate and obvious. */
+:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 2px;
+}
+
+/* ---- header ---------------------------------------------------------- */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 19px;
+  text-decoration: none;
+  color: var(--ink);
+  margin-right: auto;
+}
+
+.top nav { display: flex; gap: 22px; flex-wrap: wrap; }
+.top nav a {
+  text-decoration: none;
+  color: var(--ink);
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+}
+.top nav a:hover { border-bottom-color: var(--sky); }
+
+.burger {
+  display: none;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  /* 44px: a thumb, not a mouse pointer. */
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .burger { display: block; }
+  .top nav {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: 0;
+  }
+  .top nav.open { display: flex; }
+  .top nav a {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+/* ---- hero and feed --------------------------------------------------- */
+
+main { max-width: 760px; margin: 0 auto; padding: 0 20px 48px; }
+
+.hero { padding: 40px 0 8px; }
+.hero h1 { font-size: 32px; line-height: 1.2; margin: 0 0 8px; }
+.hero .tagline { color: var(--muted); margin: 0; font-size: 19px; }
+
+.feed h2 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 36px 0 16px;
+}
+
+.empty { color: var(--muted); }
+
+.post {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  background: var(--paper);
+}
+
+/* One photo fills the width; several become a grid. A carousel would
+   need JavaScript, gestures and an accessible fallback to show four
+   pictures, which is a lot of machinery for four pictures. */
+.shots { display: grid; gap: 2px; background: var(--wash); }
+.shots.n1 { grid-template-columns: 1fr; }
+.shots.n2 { grid-template-columns: 1fr 1fr; }
+.shots.n3, .shots.n4 { grid-template-columns: 1fr 1fr; }
+.shots img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.shots.n1 img { aspect-ratio: auto; max-height: 560px; object-fit: cover; }
+
+.post .body { padding: 18px 20px 20px; }
+.post h3 { margin: 0 0 8px; font-size: 21px; }
+/* pre-wrap: captions arrive with the line breaks their author typed,
+   and collapsing them turns a readable post into a wall. */
+.post .text { margin: 0; white-space: pre-wrap; }
+
+.more {
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  color: var(--sky-dark);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.post .meta { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+
+/* ---- static pages ---------------------------------------------------- */
+
+.page { padding-top: 32px; }
+.prose h1 { font-size: 30px; line-height: 1.2; margin: 0 0 16px; }
+.prose h2 { font-size: 22px; margin: 32px 0 8px; }
+.prose p, .prose li { font-size: 18px; }
+.prose ul { padding-left: 22px; }
+
+/* The placeholder notices on Datenschutz and AGB. They are supposed to
+   be impossible to skim past - a legal page that quietly admits it is
+   unfinished in the middle of a paragraph is one nobody notices. */
+.prose blockquote {
+  margin: 0 0 24px;
+  padding: 14px 18px;
+  border-left: 4px solid #e0a800;
+  background: #fff8e6;
+  border-radius: 0 10px 10px 0;
+}
+.prose blockquote p { margin: 0 0 8px; }
+.prose blockquote p:last-child { margin: 0; }
+
+/* ---- footer ---------------------------------------------------------- */
+
+footer {
+  border-top: 1px solid var(--line);
+  background: var(--wash);
+  padding: 28px 20px 40px;
+  text-align: center;
+  color: var(--muted);
+}
+footer nav {
+  display: flex;
+  gap: 22px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+footer a { color: var(--sky-dark); }
+footer p { margin: 0; font-size: 15px; }
