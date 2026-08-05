@@ -34,8 +34,19 @@
   --shadow-lift: 0 2px 4px rgba(18, 33, 46, 0.06),
                  0 16px 40px rgba(18, 33, 46, 0.10);
 
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  /* TWO FAMILIES, BOTH SELF-HOSTED (see main.tsx).
+     Inter for reading — it was drawn for screens and holds up at the
+     small sizes the legal pages need. Space Grotesk for headings: a
+     geometric grotesque with real character, which is the point. The
+     previous version set everything in system-ui at weight 780, and a
+     bold system font with a text-shadow is exactly the default-theme
+     look that made the page read as generic. */
+  --font: "Inter Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif,
+    system-ui, sans-serif;
+
+  font-family: var(--font);
   font-size: 18px;
   color: var(--ink);
   background: var(--paper);
@@ -84,9 +95,10 @@ a { color: var(--sky-deep); }
 }
 
 .brand {
-  font-weight: 750;
+  font-family: var(--display);
+  font-weight: 600;
   font-size: 18px;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   text-decoration: none;
   color: var(--ink);
   margin-right: auto;
@@ -165,33 +177,72 @@ a { color: var(--sky-deep); }
   overflow: hidden;
 }
 
-.hero .shot {
+/* THE CLUB'S OWN FILM, played rather than used as wallpaper. It fills
+   the hero; the poster frame is a still from the film itself, so there
+   is never an empty banner while 15 MB arrives. */
+.hero .film {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center;
-  /* Blurred and scaled past the edges: the picture is ATMOSPHERE here,
-     not information — it is shown properly further down the page. This
-     way a portrait poster still fills a wide banner without being
-     stretched or having its subject cropped out. */
-  filter: blur(18px) saturate(115%);
-  transform: scale(1.12);
-  opacity: 0.55;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #0a1a26;
 }
 
-.hero::after {
-  content: "";
+/* Once it is playing the video is the point: the hero grows to a
+   comfortable viewing height and the scrim lifts, so nobody watches a
+   film through a dark sheet with a headline across it. */
+.hero.playing { min-height: min(72vh, 620px); }
+.hero.playing .film { object-fit: contain; background: #000; }
+
+.scrim {
   position: absolute;
   inset: 0;
   /* Contrast for the text, from the bottom, so the top of the picture
      stays visible. Without this the heading is unreadable over a light
-     photograph — and it WILL be light one day, because the picture is
-     whatever the club posted last. */
+     frame — and it WILL be light, because it is a film of model
+     aircraft against the sky. */
   background: linear-gradient(
     to top,
-    rgba(10, 26, 38, 0.88) 0%,
-    rgba(10, 26, 38, 0.55) 45%,
-    rgba(10, 26, 38, 0.25) 100%);
+    rgba(8, 22, 32, 0.90) 0%,
+    rgba(8, 22, 32, 0.58) 45%,
+    rgba(8, 22, 32, 0.30) 100%);
+  transition: opacity 260ms ease;
+  pointer-events: none;
+}
+.hero.playing .scrim { opacity: 0; }
+
+/* The play control. Disabled until canplaythrough, so pressing it always
+   does what it looks like it will do rather than giving a frozen frame
+   and no explanation. */
+.play {
+  margin-top: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 26px 13px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  font-size: 16.5px;
+  cursor: pointer;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.34);
+  transition: transform 140ms ease, background 140ms ease, opacity 200ms ease;
+}
+.play:hover:not(:disabled) { transform: translateY(-1px); background: #fff; }
+.play:disabled {
+  cursor: progress;
+  background: rgba(255, 255, 255, 0.42);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: none;
+}
+.play .glyph { font-size: 18px; line-height: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .play, .scrim { transition: none; }
 }
 
 .heroinner {
@@ -204,21 +255,32 @@ a { color: var(--sky-deep); }
   color: #fff;
 }
 
+/* NO text-shadow. The scrim behind the type is what makes it readable —
+   a shadow on top of that is the belt-and-braces move that reads as a
+   default theme, and it muddies the letterforms it is meant to help. */
 .hero h1 {
-  font-size: clamp(34px, 5vw, 54px);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  font-weight: 780;
-  margin: 0 0 12px;
+  font-family: var(--display);
+  font-size: clamp(36px, 6.4vw, 68px);
+  line-height: 0.98;
+  /* Tight. A geometric display face is drawn to sit close, and this is
+     most of the difference between "modern" and "bold system font". */
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  margin: 0 0 14px;
   text-wrap: balance;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
+  max-width: 16ch;
 }
 
 .hero .tagline {
   margin: 0;
-  font-size: clamp(17px, 2vw, 21px);
-  color: rgba(255, 255, 255, 0.88);
-  font-weight: 500;
+  font-size: clamp(16px, 1.8vw, 19px);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 450;
+  /* Set against the headline rather than with it: wide tracking and
+     small caps give the two lines completely different jobs, so the
+     eye does not read them as one lump. */
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 /* ---- layout ---------------------------------------------------------- */
@@ -409,11 +471,22 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 }
 
 .post .body { padding: 22px 24px 22px; }
+/* The head sits ABOVE the pictures: a headline exists to be read before
+   the thing it introduces. */
+.post .head { padding: 22px 24px 16px; }
 .post h3 {
-  margin: 0 0 10px;
-  font-size: 22px;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
+  font-family: var(--display);
+  margin: 0 0 6px;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.post .head .meta {
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 /* pre-wrap: captions arrive with the line breaks their author typed, and
    collapsing them turns a readable post into a wall. */
@@ -459,18 +532,24 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 }
 .prose > :first-child { margin-top: 0; }
 .prose h1 {
-  font-size: clamp(28px, 4vw, 36px);
-  line-height: 1.15;
-  letter-spacing: -0.025em;
-  margin: 0 0 20px;
+  font-family: var(--display);
+  font-size: clamp(30px, 4.4vw, 42px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.032em;
+  margin: 0 0 22px;
+  text-wrap: balance;
 }
 .prose h2 {
-  font-size: 23px;
-  letter-spacing: -0.015em;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
   margin: 38px 0 10px;
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
+.prose h3, .prose h4 { font-family: var(--display); font-weight: 600; }
 /* The Datenschutzerklärung nests FOUR heading levels. Without these, h3
    and h4 fall back to browser defaults and an h3 renders LARGER than the
    h2 above it — which destroys the only thing holding a long legal

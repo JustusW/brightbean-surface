@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   Route,
@@ -26,67 +26,75 @@ function when(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? "" : DATE.format(d);
 }
 
-/** A heading for a post that has none.
+/** A heading for a post that has none: THE FIRST FEW WORDS, then an
+ *  ellipsis. That is the whole rule.
  *
  *  Social captions almost never carry a title — the composer's title
- *  field is for platforms that want one, and Instagram does not. Without
- *  a heading every card on the page opens with a wall of body text and
- *  there is nothing to scan.
+ *  field is for platforms that want one, and Instagram does not — so
+ *  without this every card opens with a wall of body text and there is
+ *  nothing to scan.
  *
- *  PREFER THE FIRST SENTENCE, and only fall back to chopping at a word
- *  boundary. "Wir feiern! Das Sommerfest…" gives a heading of "Wir
- *  feiern!" that reads as though somebody wrote it, where a blind
- *  eight-word cut would give "Wir feiern! Das Sommerfest des Vereins
- *  für…" — which is not a title, it is a truncation wearing one's
- *  clothes.
+ *  AN EARLIER VERSION CUT AT THE FIRST SENTENCE INSTEAD, which produced
+ *  a lovely "Wir feiern!" on the one post that happened to open with a
+ *  short exclamation, and would have produced nonsense on the next one.
+ *  That is not a rule, it is a coincidence with a function wrapped round
+ *  it — and a heading generator has to be judged on the captions nobody
+ *  has written yet. This one behaves identically whatever the
+ *  punctuation does.
  *
- *  Returns the heading AND what is left, because a heading that repeats
- *  the first line of the paragraph underneath it looks like a bug. */
-function split(text: string): { title: string; rest: string } {
-  const clean = text.trim();
-  if (!clean) return { title: "", rest: "" };
+ *  The body is left WHOLE. The heading is a truncation of it rather than
+ *  a piece removed from it, so cutting the words out below would start
+ *  every post mid-sentence. */
+const LEAD_WORDS = 6;
+const LEAD_CHARS = 56;
 
-  // A sentence ending, or the author's own first line break — people
-  // write captions with the hook on its own line, and that intent is
-  // worth more than punctuation.
-  const stop = clean.search(/[.!?](\s|$)|\n/);
-  if (stop > 0 && stop <= 72) {
-    const end = clean[stop] === "\n" ? stop : stop + 1;
-    return {
-      title: clean.slice(0, end).trim(),
-      rest: clean.slice(end).trim(),
-    };
-  }
+function leadIn(text: string): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
 
-  // No usable sentence: take whole words up to a readable length and
-  // leave the body intact, because cutting mid-thought would lose text
-  // rather than merely repeat it.
-  const words = clean.split(/\s+/);
   const taken: string[] = [];
-  for (const w of words) {
-    if (taken.join(" ").length + w.length > 60) break;
+  for (const w of words.slice(0, LEAD_WORDS)) {
+    // Bounded by characters as well as by words, because six words of
+    // German compounds is a different length from six words of anything
+    // else, and a heading that wraps to three lines is not a heading.
+    if (taken.length && taken.join(" ").length + 1 + w.length > LEAD_CHARS) {
+      break;
+    }
     taken.push(w);
   }
-  if (taken.length < 2) return { title: "", rest: clean };
-  return { title: taken.join(" ") + "…", rest: clean };
+  return taken.join(" ") + "…";
 }
 
 function Post({ item }: { item: FeedItem }) {
   const [open, setOpen] = useState(false);
 
-  const derived = item.title ? null : split(item.text);
-  const heading = item.title || derived?.title || "";
-  const body = derived ? derived.rest : item.text;
+  const heading = item.title || leadIn(item.text);
+  const body = item.text;
 
   const long = body.length > 340;
   const text = open || !long ? body : body.slice(0, 340) + "…";
 
   return (
     <article className="post">
+      {/* THE HEADING GOES ABOVE THE PICTURES. It was under them, which
+          made the gallery the first thing on every card and left the
+          reader scrolling past an image to find out what it was of — a
+          headline exists to be read BEFORE the thing it introduces. */}
+      {heading && (
+        <div className="head">
+          <h3>{heading}</h3>
+          <p className="meta">
+            <time dateTime={item.published_at ?? undefined}>
+              {when(item.published_at)}
+            </time>
+            {item.account.handle && <span>@{item.account.handle}</span>}
+          </p>
+        </div>
+      )}
+
       <Carousel media={item.media} />
 
       <div className="body">
-        {heading && <h3>{heading}</h3>}
         {/* Captions are plain text and rendered as such — deliberately
             NOT through the Markdown renderer. They come from social
             posts, and a stray underscore in a hashtag should not turn
@@ -97,36 +105,95 @@ function Post({ item }: { item: FeedItem }) {
             {open ? "weniger anzeigen" : "weiterlesen"}
           </button>
         )}
-        <p className="meta">
-          <time dateTime={item.published_at ?? undefined}>
-            {when(item.published_at)}
-          </time>
-          {item.account.handle && <span>@{item.account.handle}</span>}
-        </p>
+        {/* The date and the account moved UP into the head with the
+            heading — a post's byline belongs with its title, not
+            stranded at the foot of the card. Rendered here only when
+            there is no heading to carry them. */}
+        {!heading && (
+          <p className="meta">
+            <time dateTime={item.published_at ?? undefined}>
+              {when(item.published_at)}
+            </time>
+            {item.account.handle && <span>@{item.account.handle}</span>}
+          </p>
+        )}
       </div>
     </article>
   );
 }
 
-function Hero({ site, backdrop }: { site: Site | null; backdrop: string }) {
+/** The hero: the club's own film, with a play button in front of it.
+ *
+ *  MADE BY THE CLUB'S 1. VORSITZENDER, and used as it is — not
+ *  re-encoded, not shortened, not muted into a decorative loop behind
+ *  text. It is somebody's work, so it gets played rather than used as
+ *  wallpaper.
+ *
+ *  CLICK TO PLAY, AND THE BUTTON WAITS UNTIL IT CAN ACTUALLY PLAY. A
+ *  play control that is pressable before the video is ready gives you a
+ *  frozen frame and no explanation; this one says it is loading and
+ *  becomes pressable at `canplaythrough`, so pressing it always does
+ *  what it looks like it will do.
+ *
+ *  The poster frame is a still from the film itself, so the hero is
+ *  never empty while 15 MB arrives. */
+function Hero({ site }: { site: Site | null }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+  const [playing, setPlaying] = useState(false);
+
+  const start = () => {
+    const el = video.current;
+    if (!el) return;
+    // play() returns a promise that REJECTS if the browser refuses —
+    // which it does, with sound, in more situations than the spec makes
+    // obvious. Swallowing it silently would leave the overlay gone and
+    // nothing playing, so the overlay only goes once playback started.
+    el.play()
+      .then(() => setPlaying(true))
+      .catch(() => setPlaying(false));
+  };
+
   return (
-    <section className="hero">
-      {/* THE PICTURE IS THE NEWEST POST'S OWN, so the front page is never
-          stale and nobody has to remember to change a banner. It is
-          blurred and darkened because here it is ATMOSPHERE rather than
-          information — the same image is shown properly, uncropped, in
-          the feed below. */}
-      {backdrop && (
-        <div
-          className="shot"
-          aria-hidden="true"
-          style={{ backgroundImage: `url(${backdrop})` }}
-        />
+    <section className={playing ? "hero playing" : "hero"}>
+      <video
+        ref={video}
+        className="film"
+        src="/vfm-hero.mp4"
+        poster="/vfm-hero.jpg"
+        // Eager: the shepherd's call, and the reason the button can
+        // promise to work when it lights up.
+        preload="auto"
+        // playsInline stops iOS taking the video fullscreen on play,
+        // which would throw the visitor out of the page entirely.
+        playsInline
+        controls={playing}
+        onCanPlayThrough={() => setReady(true)}
+        onEnded={() => setPlaying(false)}
+      />
+
+      <div className="scrim" aria-hidden={playing} />
+
+      {!playing && (
+        <div className="heroinner">
+          <h1>{site?.title ?? "Verein für Modellflug Stutensee"}</h1>
+          {site?.tagline && <p className="tagline">{site.tagline}</p>}
+
+          <button
+            className="play"
+            onClick={start}
+            disabled={!ready}
+            aria-label={
+              ready ? "Video abspielen" : "Video wird geladen"
+            }
+          >
+            <span className="glyph" aria-hidden="true">
+              {ready ? "▶" : "…"}
+            </span>
+            <span>{ready ? "Film ansehen" : "Lädt…"}</span>
+          </button>
+        </div>
       )}
-      <div className="heroinner">
-        <h1>{site?.title ?? "Verein für Modellflug Stutensee"}</h1>
-        {site?.tagline && <p className="tagline">{site.tagline}</p>}
-      </div>
     </section>
   );
 }
@@ -142,11 +209,9 @@ function Feed({ site }: { site: Site | null }) {
       .catch(() => setFailed(true));
   }, []);
 
-  const backdrop = items?.[0]?.media?.[0]?.url ?? "";
-
   return (
     <>
-      <Hero site={site} backdrop={backdrop} />
+      <Hero site={site} />
       <main>
         <section className="feed">
           <h2>Aktuelles</h2>
@@ -285,14 +350,24 @@ function Dock({ site }: { site: Site | null }) {
 
   useEffect(() => {
     const check = () => {
-      // 24px of slack: a page whose height is a fraction of a pixel out
-      // - which happens constantly with images settling - would
-      // otherwise never quite reach the bottom, and the footer would
-      // refuse to open for reasons nobody could see.
+      const doc = document.documentElement;
+
+      // A PAGE WITH NOTHING TO SCROLL HAS NO BOTTOM TO REACH, and this
+      // is the bug that shipped: on first load the feed has not arrived,
+      // the page is shorter than the window, so "you are at the end" was
+      // trivially true and the footer opened tall before the visitor had
+      // seen anything. Asking whether the page is scrollable AT ALL
+      // first is the whole fix.
+      const scrollable = doc.scrollHeight > window.innerHeight + 4;
+
+      // 24px of slack: a page height that is a fraction of a pixel out —
+      // which happens constantly as images settle — would otherwise
+      // never quite register as the bottom, and the footer would refuse
+      // to open for reasons nobody could see.
       const bottom =
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - 24;
-      setAtEnd(bottom);
+        window.innerHeight + window.scrollY >= doc.scrollHeight - 24;
+
+      setAtEnd(scrollable && bottom);
     };
     check();
     window.addEventListener("scroll", check, { passive: true });
