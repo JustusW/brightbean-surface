@@ -48,6 +48,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -123,7 +124,26 @@ class Member(Base):
     # The first admin is made with members.py on the server, which means
     # the bootstrap requires reaching the machine rather than being the
     # first person to find the signup form.
+    # server_default, AND NOT ONLY default=False. THIS IS WHY:
+    #
+    # `default=` is applied by SQLAlchemy when IT inserts a row. It emits
+    # no DDL, so `alembic revision --autogenerate` produced
+    #
+    #     op.add_column('member',
+    #                   sa.Column('is_admin', sa.Boolean(), nullable=False))
+    #
+    # and PostgreSQL refused: "column is_admin of relation member
+    # contains null values". Adding a NOT NULL column to a table that
+    # already has rows needs a value for those rows, and only a
+    # server_default puts one in the ALTER.
+    #
+    # The three booleans above have the same shape and never hit it,
+    # because they were created WITH the table, when it was empty. That
+    # is luck rather than design, and the first person to add a column
+    # to a live table pays for it — which was me, on the members page,
+    # while the shepherd was looking at it.
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                           server_default=text("false"),
                                            default=False)
     email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False,
                                                  default=False)
