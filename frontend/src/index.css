@@ -55,7 +55,25 @@
 
 * { box-sizing: border-box; }
 
-body { margin: 0; line-height: 1.6; background: var(--wash); }
+/* NOT FLAT WHITE. A very faint vertical gradient across the whole
+   document, cool at the top and settling a little deeper towards the
+   foot — enough that the page has some air in it, nowhere near enough to
+   notice as a colour. Pure white behind a page of photographs reads as
+   unfinished. */
+body {
+  margin: 0;
+  line-height: 1.6;
+  background: linear-gradient(
+    180deg,
+    #fbfdfe 0%,
+    #f2f6f9 38%,
+    #eaf1f6 72%,
+    #e4edf4 100%);
+  /* No fixed attachment: the gradient is meant to span the PAGE, so a
+     long page spreads it further rather than repeating it per screen. */
+  background-attachment: scroll;
+  min-height: 100vh;
+}
 
 img { max-width: 100%; height: auto; display: block; }
 
@@ -558,23 +576,41 @@ main.wide { max-width: 1600px; }
   position: relative;
   width: 100vw;
   margin-left: calc(50% - 50vw);
-  height: min(46vh, 420px);
+  /* TWICE AS HIGH TO START, SHRINKING AS YOU SCROLL. --grow runs from 1
+     at the top of the page to 0 once you have scrolled past it; the
+     JavaScript that sets it is in Gallery.tsx and does nothing else.
+     Stated here rather than there because this is the arithmetic — the
+     script only supplies the number. */
+  --hero-small: min(46vh, 420px);
+  --hero-large: min(92vh, 840px);
+  --grow: 1;
+  height: calc(
+    var(--hero-small) + (var(--hero-large) - var(--hero-small)) * var(--grow)
+  );
   margin-bottom: 28px;
   overflow: hidden;
   display: flex;
   align-items: flex-end;
-  background: #0e1c27;
-}
-.galhero img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* ANCHORED TO THE TOP, which is the whole point of the crop: whatever
+  background-color: #0e1c27;
+
+  /* FIXED AGAINST SCROLLING: the picture stays where it is and the page
+     travels over it. This is why it is a background rather than an <img>
+     — background-attachment pins it without JavaScript running on every
+     scroll event.
+
+     ANCHORED TO THE TOP, which is the whole point of the crop: whatever
      does not fit comes off the BOTTOM, so the faces stay in frame and it
-     is the grass that goes. */
-  object-position: center top;
+     is the grass that goes.
+
+     iOS Safari ignores `fixed` and scrolls it normally. That is a
+     graceful loss — the picture is still right, it just travels — and
+     the alternative is a scroll handler moving it by hand on the one
+     class of device where that costs the most battery. */
+  background-image: url("/impressionen-hero.jpg");
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 /* Contrast for the heading, from the bottom, so the top of the picture
    stays as it is. */
