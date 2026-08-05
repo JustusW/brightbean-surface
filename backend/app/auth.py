@@ -56,6 +56,7 @@ SameSite=Lax session cookie set before the round trip is still sent.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -68,7 +69,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
-from .models import Identity, Member, Session as SessionRow
+from . import mail
+from .models import Identity, Member, Session as SessionRow, Token
 from .store import session
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -252,6 +254,132 @@ def require_admin(member: Member | None = Depends(current_member)) -> Member:
 
 
 # ---------------------------------------------------------------------------
+# One-time links: proving an address, and resetting a password
+# ---------------------------------------------------------------------------
+#
+# BOTH ARE THE SAME MECHANISM. Put a secret in somebody's mailbox and let
+# whoever can read that mailbox present it back. What differs is only
+# what presenting it entitles you to, and how long it lasts.
+
+VERIFY = "verify"
+RESET = "reset"
+
+#: Three days to click a confirmation, one hour to reset a password.
+#:
+#: DIFFERENT BECAUSE THE STAKES ARE DIFFERENT. A confirmation link proves
+#: an address and grants nothing; somebody who reads it a day later has
+#: lost nothing. A reset link is a full account takeover in one click, so
+#: it should be dead by the time a forwarded mail or a shared screenshot
+#: has travelled anywhere.
+LIFETIME_HOURS = {VERIFY: 72, RESET: 1}
+
+#: Where the links point. The public address of this site, declared in
+#: params.conf and written into .env — deliberately NOT built from the
+#: incoming request's Host header, which an attacker controls and which
+#: is the standard way reset links get poisoned into pointing at
+#: somebody else's server.
+PUBLIC_BASE = os.environ.get("SURFACE_PUBLIC_BASE", "").rstrip("/")
+
+
+def _fingerprint(secret: str) -> str:
+    """What gets STORED for a secret that was sent.
+
+    sha256 and not argon2, and the difference from a password is the
+    point: this value has 256 bits of CSPRNG behind it, so there is no
+    dictionary to attack and no work factor worth paying. A password is
+    slow to hash because people choose weak ones.
+    """
+    return hashlib.sha256(secret.encode()).hexdigest()
+
+
+def _issue(db: DbSession, member: Member, purpose: str) -> str:
+    """Mint a one-time link for this member and return the SECRET.
+
+    The secret is returned and never stored — only its fingerprint goes
+    in the table. It exists in exactly one other place, the message we
+    are about to send, which is why a lost one can be reissued but never
+    re-sent.
+
+    ANY EARLIER LINK OF THE SAME PURPOSE IS DELETED FIRST. Otherwise
+    every press of "forgot my password" leaves another working key to
+    the same account lying in a mailbox, and the oldest of them stays
+    valid for its full hour. One live link per purpose, and the newest
+    wins.
+    """
+    for old in db.scalars(select(Token).where(
+            Token.member_id == member.id, Token.purpose == purpose)).all():
+        db.delete(old)
+
+    secret = secrets.token_urlsafe(32)
+    db.add(Token(
+        id=_fingerprint(secret),
+        member_id=member.id,
+        purpose=purpose,
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(hours=LIFETIME_HOURS[purpose]),
+    ))
+    db.commit()
+    return secret
+
+
+def _spend(db: DbSession, secret: str, purpose: str) -> Member | None:
+    """Redeem a link, exactly once. None if it is not good.
+
+    ONE ANSWER FOR EVERY WAY OF BEING NOT GOOD — unknown, wrong purpose,
+    expired, or attached to an account that has since gone. The caller
+    says "this link is no longer valid", which is all a person can act
+    on anyway, and telling them WHICH would tell somebody guessing which
+    of their guesses was closest.
+    """
+    row = db.get(Token, _fingerprint(secret))
+    if row is None or row.purpose != purpose:
+        return None
+
+    expires = row.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires <= datetime.now(timezone.utc):
+        # Spent by expiry: the row goes, so a link that has run out
+        # cannot sit in the table waiting for a clock to be wrong.
+        db.delete(row)
+        db.commit()
+        return None
+
+    member = db.get(Member, row.member_id)
+    # DELETED WHETHER OR NOT THE MEMBER IS STILL THERE. One use is one
+    # use, and a token whose account has gone is simply litter.
+    db.delete(row)
+    db.commit()
+    return member
+
+
+def _send_verification(db: DbSession, member: Member) -> None:
+    """Ask somebody to prove the address they just typed.
+
+    NEVER RAISES, and the account exists either way. Signing up is not
+    conditional on our relay being reachable — the board approves by
+    hand, so an unproven address is inspected by a person before it is
+    let anywhere.
+    """
+    if not mail.configured() or not PUBLIC_BASE:
+        return
+    secret = _issue(db, member, VERIFY)
+    mail.send(
+        member.email,
+        "Bitte bestätige Deine E-Mail-Adresse",
+        f"Hallo,\n\n"
+        f"für diese E-Mail-Adresse wurde ein Konto im Mitgliederbereich "
+        f"des Vereins für Modellflug Stutensee angelegt.\n\n"
+        f"Bitte bestätige die Adresse mit diesem Link:\n\n"
+        f"{PUBLIC_BASE}{MEMBERS_PAGE}?bestaetigen={secret}\n\n"
+        f"Der Link gilt {LIFETIME_HOURS[VERIFY]} Stunden.\n\n"
+        f"Wenn Du Dich nicht registriert hast, kannst Du diese Nachricht "
+        f"einfach ignorieren — ohne Bestätigung passiert nichts, und ein "
+        f"Konto wird ohnehin erst vom Vorstand freigeschaltet.\n",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Email and password
 # ---------------------------------------------------------------------------
 
@@ -312,6 +440,19 @@ def signup(payload: dict = Body(default={}),
     member = Member(email=email, password_hash=hasher.hash(password))
     db.add(member)
     db.commit()
+
+    # PROVE THE ADDRESS. Until this file existed, email_verified was
+    # never set for a password signup at all, so anybody could register
+    # an address they did not own and simply be waiting when its real
+    # owner arrived. The board approving by hand was the only thing in
+    # the way, and that is a person's attention rather than a control.
+    #
+    # It does not gate signing in, and deliberately: the club's gate is
+    # approval, and locking somebody out of a page that only says "wait
+    # for the board" because our relay was down would be punishing them
+    # for our outage. What verification does is tell the board which
+    # addresses are real.
+    _send_verification(db, member)
 
     row = _new_session(db, member)
     response = JSONResponse(_account(member))
@@ -398,6 +539,134 @@ def me(member: Member | None = Depends(current_member)) -> JSONResponse:
         # frontend treats it as such and reports nothing.
         raise HTTPException(status_code=401, detail="Nicht angemeldet.")
     return JSONResponse(_account(member))
+
+
+@router.post("/verify")
+def verify(payload: dict = Body(default={}),
+           db: DbSession = Depends(session)) -> JSONResponse:
+    """Redeem a confirmation link.
+
+    A POST rather than a GET, even though it arrives as a link. Mail
+    clients and corporate scanners FETCH links to preview them, and a
+    GET that changes state gets spent by a robot before the member has
+    read the message. So the link opens the members page, and the page
+    posts the token.
+    """
+    secret = (payload.get("token", "") or "").strip()
+    member = _spend(db, secret, VERIFY) if secret else None
+    if member is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Dieser Bestätigungslink ist nicht mehr gültig. Bitte "
+                   "fordere einen neuen an.")
+
+    member.email_verified = True
+    db.commit()
+    # NOT SIGNED IN by this. Proving an address says the mailbox is
+    # theirs, not that the person at this browser is them — and an
+    # unattended mail client fetching a link should never end up holding
+    # a session.
+    return JSONResponse({"email": member.email, "verified": True})
+
+
+@router.post("/reset/request", status_code=204)
+def reset_request(payload: dict = Body(default={}),
+                  db: DbSession = Depends(session)) -> Response:
+    """Ask for a password reset link.
+
+    ALWAYS 204, whatever is true. Answering differently for an address
+    that has an account turns this into a membership oracle that anybody
+    can query — and a club's membership list is exactly the sort of
+    thing that should not be assembled from a public form.
+
+    Note that /signup DOES reveal it, deliberately and with the reasoning
+    written there. That is a trade-off taken for a form somebody is
+    filling in about themselves; it is not a reason to hand out the same
+    fact in bulk here.
+    """
+    email = (payload.get("email", "") or "").strip().lower()
+    member = (db.scalar(select(Member).where(Member.email == email))
+              if email and "@" in email else None)
+
+    if member is not None and member.is_active and mail.configured() \
+            and PUBLIC_BASE:
+        if member.password_hash is None:
+            # A GOOGLE-ONLY ACCOUNT. Sending a reset link would let
+            # somebody who has the mailbox ADD a password to an account
+            # that deliberately has none — so instead the mailbox's
+            # owner is simply told which button to press. This reveals
+            # nothing to anybody else: it goes to the address itself,
+            # and the HTTP answer is 204 either way.
+            mail.send(
+                member.email,
+                "Anmeldung im Mitgliederbereich",
+                "Hallo,\n\n"
+                "für diese Adresse wurde ein neues Passwort angefordert.\n\n"
+                "Dieses Konto wurde mit Google angelegt und hat kein "
+                "Passwort. Bitte melde Dich mit \"Mit Google anmelden\" an:\n\n"
+                f"{PUBLIC_BASE}{MEMBERS_PAGE}\n",
+            )
+        else:
+            secret = _issue(db, member, RESET)
+            mail.send(
+                member.email,
+                "Neues Passwort für den Mitgliederbereich",
+                "Hallo,\n\n"
+                "für Dein Konto im Mitgliederbereich wurde ein neues "
+                "Passwort angefordert.\n\n"
+                "Mit diesem Link kannst Du eines setzen:\n\n"
+                f"{PUBLIC_BASE}{MEMBERS_PAGE}?zuruecksetzen={secret}\n\n"
+                f"Der Link gilt {LIFETIME_HOURS[RESET]} Stunde und kann "
+                "nur einmal verwendet werden.\n\n"
+                "Wenn Du das nicht warst, ist nichts passiert — solange "
+                "der Link nicht benutzt wird, bleibt Dein bisheriges "
+                "Passwort gültig.\n",
+            )
+
+    return Response(status_code=204)
+
+
+@router.post("/reset/confirm")
+def reset_confirm(payload: dict = Body(default={}),
+                  db: DbSession = Depends(session)) -> JSONResponse:
+    """Set a new password with a reset link."""
+    secret = (payload.get("token", "") or "").strip()
+    password = _check_password(payload.get("password", ""))
+
+    member = _spend(db, secret, RESET) if secret else None
+    if member is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Dieser Link ist nicht mehr gültig. Bitte fordere einen "
+                   "neuen an.")
+    if not member.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Dieses Konto ist deaktiviert. Bitte wende Dich an den "
+                   "Vorstand.")
+
+    member.password_hash = hasher.hash(password)
+    # THEY PROVED THE MAILBOX. Anybody arriving here read a message we
+    # sent to that address, which is the same evidence a confirmation
+    # link carries — so recording it is honest rather than generous.
+    member.email_verified = True
+
+    # EVERY OTHER SESSION ENDS. A password reset is what somebody does
+    # when they think their account is compromised, and leaving the
+    # intruder's session alive would make it ceremony. This is the
+    # property a server-side session table exists to give: the rows go,
+    # and the cookies holding their ids refer to nothing.
+    for row in db.scalars(select(SessionRow).where(
+            SessionRow.member_id == member.id)).all():
+        db.delete(row)
+    db.commit()
+
+    # And then signed in, on this browser, with a fresh session — they
+    # have just proved the mailbox and chosen the password.
+    row = _new_session(db, member)
+    response = JSONResponse(_account(member))
+    _set_session_cookie(response, row.id)
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -576,6 +845,12 @@ def registrations(_: Member = Depends(require_admin),
             "approved": m.is_approved,
             "active": m.is_active,
             "admin": m.is_admin,
+            # WHETHER THE ADDRESS WAS EVER PROVEN, which is exactly the
+            # question the board is answering when it approves somebody.
+            # An unverified address is not a reason to refuse — the club
+            # knows its own members, and somebody may simply not have
+            # clicked — but it is a reason to look twice.
+            "verified": m.email_verified,
             "created": m.created_at.date().isoformat(),
             # How they get in, which is the useful thing to see beside a
             # name: "google" or "password", or both.

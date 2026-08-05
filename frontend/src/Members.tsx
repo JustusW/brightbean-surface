@@ -112,6 +112,11 @@ function Board({ me }: { me: MemberAccount }) {
                 {r.created} · {r.how.join(" + ") || "?"}
                 {r.admin && " · Vorstand"}
                 {!r.active && " · gesperrt"}
+                {/* Said only when it is NOT true. A verified address is
+                    the ordinary case and does not need announcing; an
+                    unverified one is the thing to look at twice before
+                    letting somebody in. */}
+                {!r.verified && " · E-Mail unbestätigt"}
               </span>
             </div>
             {/* THE ONE CASE WITH NO BUTTON: an admin cannot revoke
@@ -219,6 +224,19 @@ export default function Members() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /** A GOOD thing to report, deliberately separate from `error` so the
+   *  two cannot be confused: a confirmation is not a failure and must
+   *  not be painted like one. */
+  const [notice, setNotice] = useState("");
+  /** Set when a password-reset link has been opened. While it holds a
+   *  value the page shows "choose a new password" rather than the login
+   *  form — the person is here to do one specific thing. */
+  const [resetToken, setResetToken] = useState("");
+  /** Whether the "I have forgotten my password" form is showing. */
+  const [forgot, setForgot] = useState(false);
+  /** True once the reset request has been sent, so the page can stop
+   *  offering the button and say what happens next. */
+  const [asked2, setAsked2] = useState(false);
 
   // WHO IS THIS, IF ANYBODY. A 401 here is the ordinary state of a
   // visitor who has not signed in, not a failure worth reporting — so it
@@ -244,7 +262,50 @@ export default function Members() {
    *  it refuses a password, and it cost an hour of looking at cookies
    *  and proxies for what was a typo. */
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("fehler");
+    const query = new URLSearchParams(window.location.search);
+
+    /* TAKEN OUT OF THE ADDRESS BAR IMMEDIATELY, in every branch below.
+       A token on the URL is a live credential: it goes into history, it
+       is offered as a Referer to anything the page later loads, and it
+       is what somebody copies when they paste "the link that didn't
+       work" into a message. Reading it once and removing it is the
+       whole of the mitigation. */
+    const clean = () =>
+      window.history.replaceState({}, "", window.location.pathname);
+
+    const confirming = query.get("bestaetigen");
+    if (confirming) {
+      clean();
+      api
+        .verify(confirming)
+        .then(() =>
+          setNotice(
+            "Danke — Deine E-Mail-Adresse ist bestätigt. Sobald der " +
+              "Vorstand Dein Konto freischaltet, kannst Du den internen " +
+              "Bereich sehen.",
+          ),
+        )
+        .catch((err) =>
+          setError(
+            err instanceof ApiError
+              ? err.message
+              : "Dieser Bestätigungslink ist nicht mehr gültig.",
+          ),
+        );
+      return;
+    }
+
+    const resetting = query.get("zuruecksetzen");
+    if (resetting) {
+      clean();
+      // NOT SPENT YET. The token is only redeemed when a new password is
+      // actually submitted, so opening the link in a mail preview does
+      // not burn it.
+      setResetToken(resetting);
+      return;
+    }
+
+    const code = query.get("fehler");
     if (!code) return;
     const said: Record<string, string> = {
       abgebrochen: "Die Anmeldung mit Google wurde abgebrochen.",
@@ -291,6 +352,50 @@ export default function Members() {
     }
   };
 
+  /** "I have forgotten my password." */
+  const askReset = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await api.resetRequest(email);
+    } catch {
+      /* NOTHING IS REPORTED, AND THAT IS THE DESIGN. The route answers
+         204 whatever is true, so there is nothing here to read — and
+         reporting a transport failure differently from success would
+         start rebuilding the very oracle the 204 exists to prevent.
+         The message below is the same either way. */
+    } finally {
+      setBusy(false);
+      setAsked2(true);
+    }
+  };
+
+  /** Choosing a new password, having arrived with a reset link. */
+  const setNewPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      setMember(await api.resetConfirm(resetToken, password));
+      // The token is spent; drop it so a reload cannot try again.
+      setResetToken("");
+      setPassword("");
+      setNotice(
+        "Dein neues Passwort ist gesetzt und Du bist angemeldet. Andere " +
+          "Geräte wurden abgemeldet.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Das hat nicht geklappt. Bitte fordere einen neuen Link an.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const signOut = async () => {
     setBusy(true);
     try {
@@ -323,6 +428,20 @@ export default function Members() {
           <h1>Willkommen</h1>
           <p className="memberwho">{member.email}</p>
 
+          {/* Good news, announced rather than merely drawn — somebody
+              who has just confirmed an address or set a password needs
+              telling that it worked. */}
+          {notice && (
+            <p className="membernotice" role="status">
+              {notice}
+            </p>
+          )}
+          {error && (
+            <p className="membererror" role="alert">
+              {error}
+            </p>
+          )}
+
           {member.approved ? (
             <p>
               Schön, dass Du da bist. Hier entsteht der interne Bereich für
@@ -352,11 +471,129 @@ export default function Members() {
     );
   }
 
+  // ---- arrived with a password-reset link ------------------------------
+  //
+  // A PAGE OF ITS OWN, not a field bolted onto the login form. Somebody
+  // here has come from their mailbox to do exactly one thing, and
+  // offering them the ordinary login as well would invite them to try
+  // the password they have already forgotten.
+  if (resetToken) {
+    return (
+      <section className="members">
+        <div className="memberbox">
+          <h1>Neues Passwort</h1>
+          <p className="memberwho">
+            Wähle ein neues Passwort für Dein Konto.
+          </p>
+
+          {error && (
+            <p className="membererror" role="alert">
+              {error}
+            </p>
+          )}
+
+          <form onSubmit={setNewPassword}>
+            <label htmlFor="member-newpassword">Neues Passwort</label>
+            <input
+              id="member-newpassword"
+              type="password"
+              name="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              autoFocus
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button className="memberdo" type="submit" disabled={busy}>
+              {busy ? "Einen Moment…" : "Passwort setzen"}
+            </button>
+          </form>
+
+          <p className="membernote">
+            Mindestens 8 Zeichen. Nach dem Setzen bist Du auf diesem Gerät
+            angemeldet; alle anderen Anmeldungen werden beendet.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  // ---- asked for a reset link ------------------------------------------
+  if (forgot) {
+    return (
+      <section className="members">
+        <div className="memberbox">
+          <h1>Passwort vergessen</h1>
+
+          {asked2 ? (
+            /* THE SAME ANSWER WHATEVER IS TRUE. It deliberately does not
+               say whether an account exists — that question is not one a
+               public form should answer about the club's members. */
+            <>
+              <p className="membernotice" role="status">
+                Wenn es für diese Adresse ein Konto gibt, ist eine E-Mail
+                mit einem Link unterwegs. Der Link gilt eine Stunde.
+              </p>
+              <button
+                className="memberout"
+                onClick={() => {
+                  setForgot(false);
+                  setAsked2(false);
+                }}
+              >
+                Zurück zur Anmeldung
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="memberwho">
+                Wir schicken Dir einen Link, mit dem Du ein neues Passwort
+                setzen kannst.
+              </p>
+              <form onSubmit={askReset}>
+                <label htmlFor="member-forgot">E-Mail-Adresse</label>
+                <input
+                  id="member-forgot"
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <button className="memberdo" type="submit" disabled={busy}>
+                  {busy ? "Einen Moment…" : "Link anfordern"}
+                </button>
+              </form>
+              <button
+                className="memberout"
+                onClick={() => setForgot(false)}
+                disabled={busy}
+              >
+                Zurück zur Anmeldung
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   // ---- signed out -----------------------------------------------------
   return (
     <section className="members">
       <div className="memberbox">
         <h1>Mitgliederbereich</h1>
+
+        {/* A confirmation link lands here while nobody is signed in, so
+            the good news has to be sayable in this state too. */}
+        {notice && (
+          <p className="membernotice" role="status">
+            {notice}
+          </p>
+        )}
 
         {/* Real buttons with aria-pressed, not styled divs: this is a
             control, it has a state, and a screen reader has to be able to
@@ -429,6 +666,24 @@ export default function Members() {
                 : "Anmelden"}
           </button>
         </form>
+
+        {/* ONLY WHEN SIGNING IN. On the registration tab it would be
+            nonsense — there is nothing yet to have forgotten. A real
+            button rather than a link: it goes nowhere, it changes what
+            this page is showing. */}
+        {mode === "login" && (
+          <button
+            className="memberforgot"
+            type="button"
+            onClick={() => {
+              setForgot(true);
+              setError("");
+              setPassword("");
+            }}
+          >
+            Passwort vergessen?
+          </button>
+        )}
 
         <p className="memberor">oder</p>
 

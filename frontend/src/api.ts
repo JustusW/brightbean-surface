@@ -81,6 +81,10 @@ export interface Registration {
   approved: boolean;
   active: boolean;
   admin: boolean;
+  /** Whether the address was ever proven by clicking a link sent to it.
+   *  Not a reason to refuse somebody — the club knows its own members —
+   *  but a reason to look twice before approving. */
+  verified: boolean;
   /** ISO date. */
   created: string;
   /** How they get in: "password", "google", or both. */
@@ -162,6 +166,21 @@ export const api = {
   login: (email: string, password: string) =>
     post<MemberAccount>("/api/auth/login", { email, password }),
   logout: () => post<void>("/api/auth/logout", {}),
+
+  // ---- one-time links -------------------------------------------------
+  //
+  // BOTH ARE POSTS, even though each arrives as a link in a message. Mail
+  // clients and corporate scanners FETCH links to preview them, so a GET
+  // that changes state gets spent by a robot before the member has read
+  // the message. The link opens this page; the page posts the token.
+  verify: (token: string) =>
+    post<{ email: string; verified: boolean }>("/api/auth/verify", { token }),
+  /** Answers 204 whatever is true — see the route. Never report from the
+   *  result whether an account exists; there is nothing there to read. */
+  resetRequest: (email: string) =>
+    post<void>("/api/auth/reset/request", { email }),
+  resetConfirm: (token: string, password: string) =>
+    post<MemberAccount>("/api/auth/reset/confirm", { token, password }),
 
   // ---- the board ------------------------------------------------------
   //

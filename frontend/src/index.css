@@ -998,6 +998,38 @@ main > .empty { margin-top: 40px; }
   font-size: 15.5px;
 }
 
+/* GOOD NEWS, and shaped like the warning so the two read as a pair —
+   same geometry, opposite colour. A confirmation drawn in the error
+   style is how somebody comes away thinking they broke something. */
+.membernotice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #eaf7ef;
+  border-left: 4px solid #2e8b57;
+  color: #1d5c3a;
+  font-size: 15.5px;
+}
+
+/* "Passwort vergessen?" — a real button, because it changes what this
+   page shows rather than going anywhere. Styled quietly: it is the way
+   out of a bad moment, not something to press by accident, and it still
+   gets a full 44px of height like every other control here. */
+.memberforgot {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 0;
+  background: none;
+  color: var(--sky-deep);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.memberforgot:hover { text-decoration: underline; }
+
 .memberdo,
 .membergoogle,
 .memberout {
