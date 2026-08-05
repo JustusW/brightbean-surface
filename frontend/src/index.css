@@ -348,9 +348,29 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
  * PhotoGrid.tsx. It arrives through npm and is bundled into our own
  * assets, so nothing is fetched from anybody else. */
 
+/* HORIZONTAL ONLY. NEVER TALLER.
+ *
+ * "Horizontal growth only, no vertical growth..." — so this is ONE row
+ * that runs off the side and scrolls, not a grid that wraps. Wrapping
+ * makes a post with eight photographs three times the height of a post
+ * with two, and a page whose length depends on how many pictures
+ * somebody attached is a page that cannot be laid out.
+ *
+ * The height is therefore fixed and the width is whatever the pictures
+ * need. As many as fit stand side by side; the rest are one swipe, one
+ * wheel-tilt or one arrow key away.
+ */
 .pics {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  /* Stops a sideways flick at the end of the row from dragging the whole
+     page back a step — the browser-history gesture, which is not what
+     anybody meant by looking at the next photograph. */
+  overscroll-behavior-x: contain;
+  /* Proximity rather than mandatory: it tidies up where a picture nearly
+     lands on the edge, and never fights somebody scanning across. */
+  scroll-snap-type: x proximity;
   gap: 8px;
   padding: 0 8px 8px;
 }
@@ -359,6 +379,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   display: block;
   flex: 0 0 auto;
   height: 220px;
+  scroll-snap-align: start;
   border-radius: 10px;
   overflow: hidden;
   /* The same dark backing the carousel used, so a picture that has not
@@ -369,12 +390,6 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 }
 .pic:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
 .pic img { height: 100%; width: auto; display: block; }
-
-/* A LONE PICTURE GETS THE WHOLE CARD. One 220px tile in a 720px card
-   looks like the thumbnail of something more interesting elsewhere —
-   and most posts here have exactly one picture. */
-.pics:has(> :only-child) .pic { height: auto; width: 100%; }
-.pics:has(> :only-child) .pic img { width: 100%; height: auto; }
 @media (prefers-reduced-motion: reduce) {
   .pic { transition: none; }
 }
@@ -464,11 +479,12 @@ main.wide { max-width: 1600px; }
    viewers' worth of CSS with one viewer left to use it. */
 
 @media (max-width: 780px) {
-  /* ONE PICTURE PER ROW ON A PHONE. A fixed-height row of landscape
-     photographs on a 390px screen shows one and a sliver of the next,
-     which reads as broken rather than as an invitation to scroll. */
-  .pic, .gallery .pic { height: auto; width: 100%; }
-  .pic img, .gallery .pic img { width: 100%; height: auto; }
+  /* SHORTER, BUT STILL ONE SCROLLING ROW. Full-width pictures stacked
+     down the page is exactly the vertical growth that is not wanted —
+     and a phone is the one place a sideways swipe is the natural
+     gesture anyway. */
+  .pic { height: 150px; }
+  .gallery .pic { height: 180px; }
 }
 
 /* ---- static pages ---------------------------------------------------- */
