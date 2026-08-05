@@ -509,28 +509,74 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 
 /* ---- footer ---------------------------------------------------------- */
 
-footer {
-  background: var(--ink);
+/* ---- the dock: a footer that is always there ------------------------- */
+/* Slim and pinned, opening out at the end of the page.
+ *
+ * The legal links are in the DOM IDENTICALLY in both states - collapsing
+ * changes padding and type size and never removes a control. §5 TMG
+ * wants the Impressum within two clicks of every page; pinned, it is
+ * within reach from every SCROLL POSITION of every page, which is a
+ * stronger promise. A footer that hid its legal links until you scrolled
+ * would meet the letter of that and defeat its point. */
+
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: rgba(18, 33, 46, 0.92);
+  backdrop-filter: saturate(180%) blur(12px);
   color: rgba(255, 255, 255, 0.72);
-  padding: 40px 24px 48px;
-  margin-top: 56px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  transition: padding 220ms ease, background 220ms ease;
+  padding: 9px 24px;
 }
+.dock.open {
+  padding: 26px 24px 30px;
+  background: var(--ink);
+}
+
+/* THE PAGE MUST NOT END UNDERNEATH IT. Content is padded by the
+   collapsed height, so the last line of a page is readable rather than
+   sitting behind a bar - and the dock only overlaps itself when it
+   expands, at which point you have reached the end anyway. */
+body { padding-bottom: 46px; }
+
 .footinner {
   max-width: 1080px;
   margin: 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 18px 28px;
+  gap: 6px 26px;
   align-items: center;
 }
-footer nav { display: flex; gap: 24px; flex-wrap: wrap; margin-right: auto; }
-footer a {
+
+.dock nav { display: flex; gap: 22px; flex-wrap: wrap; margin-right: auto; }
+.dock a {
   color: rgba(255, 255, 255, 0.86);
   text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 14px;
+  border-bottom: 1px solid transparent;
+  transition: border-color 140ms ease, font-size 220ms ease;
+  /* Small text, but a full-height hit area: the bar is 46px and the
+     link should be too, rather than a 14px sliver of it. */
+  padding: 6px 0;
 }
-footer a:hover { border-bottom-color: rgba(255, 255, 255, 0.8); }
-footer p { margin: 0; font-size: 14.5px; }
+.dock a:hover { border-bottom-color: rgba(255, 255, 255, 0.7); }
+.dock.open a { font-size: 15.5px; }
+
+.dock p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  transition: font-size 220ms ease, color 220ms ease;
+}
+.dock.open p { font-size: 14.5px; color: rgba(255, 255, 255, 0.72); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dock, .dock a, .dock p { transition: none; }
+}
 
 @media (max-width: 780px) {
   :root { font-size: 17px; }

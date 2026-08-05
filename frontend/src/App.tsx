@@ -261,26 +261,63 @@ function Shell({ site }: { site: Site | null }) {
         <Route path="/:slug" element={<StaticPage />} />
       </Routes>
 
-      <footer>
-        <div className="footinner">
-          {/* Impressum, Datenschutz and AGB live here rather than in the
-              main navigation because §5 TMG requires them reachable
-              within two clicks from EVERY page — a footer is the only
-              place that is true of. */}
-          <nav>
-            {(site?.footer ?? []).map((l) => (
-              <Link key={l.slug} to={`/${l.slug}`}>
-                {l.title}
-              </Link>
-            ))}
-          </nav>
-          <p>
-            © {new Date().getFullYear()}{" "}
-            {site?.title ?? "VFM Stutensee"}
-          </p>
-        </div>
-      </footer>
+      <Dock site={site} />
     </>
+  );
+}
+
+/** The footer, always there.
+ *
+ *  A SLIM BAR PINNED TO THE BOTTOM that opens out when you reach the end
+ *  of the page. Two reasons beyond looking better than a slab of dark
+ *  blue you only meet after scrolling:
+ *
+ *  §5 TMG wants the Impressum reachable within two clicks from every
+ *  page. Pinned, it is reachable from every SCROLL POSITION of every
+ *  page — which is a stronger promise and costs 46 pixels.
+ *
+ *  And the links are in the DOM identically in both states: collapsing
+ *  is padding and type size, never removing a control. A footer that
+ *  hid its legal links until you scrolled would satisfy the letter of
+ *  the requirement and defeat its point. */
+function Dock({ site }: { site: Site | null }) {
+  const [atEnd, setAtEnd] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      // 24px of slack: a page whose height is a fraction of a pixel out
+      // - which happens constantly with images settling - would
+      // otherwise never quite reach the bottom, and the footer would
+      // refuse to open for reasons nobody could see.
+      const bottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 24;
+      setAtEnd(bottom);
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  });
+
+  return (
+    <footer className={atEnd ? "dock open" : "dock"}>
+      <div className="footinner">
+        <nav>
+          {(site?.footer ?? []).map((l) => (
+            <Link key={l.slug} to={`/${l.slug}`}>
+              {l.title}
+            </Link>
+          ))}
+        </nav>
+        <p>
+          © {new Date().getFullYear()} {site?.title ?? "VFM Stutensee"}
+        </p>
+      </div>
+    </footer>
   );
 }
 
