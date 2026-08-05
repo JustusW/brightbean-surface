@@ -1,12 +1,39 @@
 # Deliberately short. This is a public website's backend: every package
 # here is one more thing to patch on a machine whose brief is to need no
 # attention, and one more way in.
+#
+# ---------------------------------------------------------------------
+# FLOORS, NOT PINS. THIS FILE USED TO BE EXACT PINS AND THAT WAS WRONG.
+# ---------------------------------------------------------------------
+#
+# Every line here was `==` at a version from late 2024, and it was still
+# saying that in August 2026 — fastapi 26 minor releases behind, uvicorn
+# 18, alembic 5, authlib 3, argon2-cffi two years. On a public endpoint
+# that holds a connection to the database with every OAuth token in it.
+#
+#     "wtf do you think this is? the 'get your ass hacked in record
+#      time'-self-help group?"
+#
+# An exact pin is a decision to keep running known-vulnerable code until
+# a human remembers to come back and edit a file. Nobody was ever going
+# to. That is the opposite of requirement 2 — as safe as possible — and
+# it fails requirement 1 as well, because "unattended" cannot mean
+# "frozen".
+#
+# So: `>=` floors. The image is rebuilt by the surface-install action,
+# which a person triggers and watches, so a resolver picking up
+# something newer is seen immediately rather than at four in the
+# morning. The floor records what the code has actually been run
+# against; anything above it is a fix we want and have not had to ask
+# for.
+#
+# The floors below were read off PyPI on 05/08/2026, not remembered.
 
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
+fastapi>=0.141.1
+uvicorn[standard]>=0.52.1
 
 # psycopg 3, binary build so there is no libpq to install alongside it.
-psycopg[binary,pool]==3.2.3
+psycopg[binary,pool]>=3.3.4
 
 # ---------------------------------------------------------------------
 # The surface's OWN database — members, sessions, identities.
@@ -26,8 +53,8 @@ psycopg[binary,pool]==3.2.3
 #                   GENERATED with --autogenerate. We own this schema, so
 #                   it gets declared once and the DDL is derived from the
 #                   declaration rather than typed twice.
-SQLAlchemy==2.0.36
-alembic==1.14.0
+SQLAlchemy>=2.0.51
+alembic>=1.19.0
 
 # ---------------------------------------------------------------------
 # Members: signup AND sign-in with Google. Both, not either.
@@ -37,17 +64,31 @@ alembic==1.14.0
 # passwords for a public signup form on the internet, argon2 is what the
 # OWASP guidance names first, and the parameters are the library's
 # maintained defaults rather than numbers somebody picked in 2015.
-argon2-cffi==23.1.0
+argon2-cffi>=25.1.0
 
-# The Google OAuth leg. httpx does the token exchange; authlib validates
-# the ID token's signature, issuer, audience and expiry against Google's
-# published keys. Doing that by hand is exactly the code that looks
-# finished and accepts a forged token - the signature check is the whole
-# security property, and skipping it turns "sign in with Google" into
-# "tell me who you are and I will believe you".
-httpx==0.28.1
-authlib==1.4.0
+# THE WHOLE OAUTH FLOW IS THIS PACKAGE'S JOB, not ours.
+#
+# The first attempt used authlib to validate the ID token and hand-wrote
+# everything around it — authorize URL, state, nonce, code exchange, and
+# Google's endpoints as constants. That is precisely backwards: the flow
+# is where the known footguns are, and it is what a maintained client
+# exists to get right. Read notes/authlib-client-api.txt, which is the
+# published documentation on disk for exactly the reason
+# notes/swiper-api.txt is.
+authlib>=1.7.2
 
-# Session cookies that carry a signature, so a cookie cannot be edited
-# into somebody else's session.
-itsdangerous==2.2.0
+# httpx is authlib's async transport for the token exchange and the JWKS
+# fetch. It is a dependency of the way we use authlib rather than
+# something this code calls directly.
+httpx>=0.28.1
+
+# Authlib's Starlette client keeps the in-flight OAuth state — the state
+# and nonce it generates — in `request.session`, which is Starlette's
+# SessionMiddleware, which signs its cookie with this.
+#
+# I removed this line once, arguing that the LOGIN cookie needs no
+# signature because it carries 256 bits of CSPRNG looked up as a primary
+# key. That argument is still true of the login cookie and was never
+# true of the OAuth round trip, which is a different cookie doing a
+# different job.
+itsdangerous>=2.2.0
