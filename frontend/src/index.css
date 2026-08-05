@@ -89,7 +89,19 @@ html {
 body {
   margin: 0;
   line-height: 1.6;
-  min-height: 100vh;
+
+  /* ENOUGH PAGE TO FINISH THE SHRINK, ON EVERY PAGE. "add a minimal
+     height so that the Impressionen page can scroll fully."
+
+     Measured: Impressionen could only scroll 404px, and the hero needs
+     420 to reach its resting height — so it stopped at 312px and the
+     ratio read 1.92 instead of 2.00. Not a divergence between the two
+     pages, just a page too short to finish the gesture.
+
+     The 420 must match SHRINK_OVER in Hero.tsx. It is the one number
+     that is stated in both places, because one is a scroll distance in
+     JavaScript and the other is a document length in CSS. */
+  min-height: calc(100vh + 420px);
   /* Deliberately transparent. See above. */
   background: transparent;
   /* THE PAGE MUST NOT END UNDERNEATH THE DOCK, which is pinned and
@@ -915,9 +927,13 @@ main > .empty { margin-top: 40px; }
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: rgba(18, 33, 46, 0.92);
-  backdrop-filter: saturate(180%) blur(12px);
-  color: rgba(255, 255, 255, 0.72);
+  /* MORE TRANSPARENT, on instruction. The blur behind it is what keeps
+     the links legible over whatever is passing underneath, so the colour
+     can afford to give way — at 0.92 it was a solid bar, and the page no
+     longer appears to end at it. */
+  background: rgba(18, 33, 46, 0.62);
+  backdrop-filter: saturate(180%) blur(14px);
+  color: rgba(255, 255, 255, 0.78);
   border-top: 1px solid rgba(255, 255, 255, 0.10);
   padding: 9px 24px;
 }

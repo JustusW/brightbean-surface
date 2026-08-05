@@ -158,12 +158,11 @@ export default function PhotoGallery({
         a11y={A11Y}
         loop={false}
         onSlideChange={(s) => setActive(s.activeIndex)}
-        /* CLICK OPENS THE FULL-SCREEN VIEW. clickedIndex is Swiper's own
-           record of which slide was hit, so clicking a picture that is
-           only half in view opens THAT one rather than the centred one. */
-        onClick={(s) => {
-          if (typeof s.clickedIndex === "number") setOpen(s.clickedIndex);
-        }}
+        /* NO onClick HERE. It set setOpen(s.clickedIndex) from a
+           container-level click, and with the per-slide handler below
+           that would fire second and overwrite the right answer with
+           whichever slide Swiper's own hit-testing had guessed. One
+           source of truth for "which picture did they click". */
       >
         {/* The out-of-focus background: the picture in front of you,
             blurred and darkened, filling everything the slides do not.
@@ -178,7 +177,26 @@ export default function PhotoGallery({
         />
 
         {media.map((m, i) => (
-          <SwiperSlide key={i}>
+          /* THE HANDLER IS ON THE SLIDE, NOT ON THE CONTAINER, and that
+             is what makes clicking picture two work.
+             
+             It used to rely on Swiper's own clickedIndex, read from a
+             container-level click. Coverflow ROTATES the neighbouring
+             slides 32 degrees in 3D, so their hit area stops matching
+             where they appear on screen: a click aimed at the picture
+             beside the centre lands somewhere else, or on nothing.
+             Measured on the live page — every click on Impressionen
+             failed to open anything, while the front page, where one
+             slide fills the frame and nothing is rotated, opened all
+             three. Reported from the other side as "the zoom is only
+             broken on the second and third picture", which is the same
+             fact seen by somebody who does not know about hit-testing.
+
+             On the transformed element itself the browser hit-tests the
+             transformed geometry, so what you click is what you get.
+             Swiper's preventClicks still suppresses the click that ends
+             a drag, so this does not fire when you swipe. */
+          <SwiperSlide key={i} onClick={() => setOpen(i)}>
             <img
               src={m.url}
               /* Alt text comes from the media library, where somebody
