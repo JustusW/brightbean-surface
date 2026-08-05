@@ -41,20 +41,47 @@ DSN_ENV = "SURFACE_DATABASE_URL"
 
 
 def _configure(conn: psycopg.Connection) -> None:
-    """Make every connection READ ONLY, at the server.
+    """Make every connection READ ONLY, at the server, and PROVE it.
 
-    `conn.read_only = True` issues SET SESSION CHARACTERISTICS AS
-    TRANSACTION READ ONLY, so PostgreSQL itself refuses an INSERT, UPDATE
-    or DELETE on this connection. A bug in this repository then becomes
-    an error rather than a change to somebody's published history.
+    A bug in this repository then becomes an error rather than a change
+    to somebody's published history. The alternative — only ever writing
+    SELECTs and being careful — is not a property anything can rely on
+    six months and three contributors from now.
 
-    The alternative — only ever writing SELECTs and being careful — is
-    not a property anything can rely on six months and three
-    contributors from now. This is a lock; the read-only database user it
-    should be paired with is the other one.
+    SETTING conn.read_only WAS NOT ENOUGH, and that is measured rather
+    than theorised. psycopg applies that attribute to the NEXT
+    transaction; with autocommit on there is no explicit transaction for
+    it to attach to, and the first deployment answered
+
+        {"ok":true,"reachable":true,"read_only":false}
+
+    from a health check that asked PostgreSQL instead of trusting the
+    attribute. A public website had a WRITABLE connection to the database
+    holding every OAuth token, and nothing but that check would have said
+    so.
+
+    So the statement is issued explicitly, and then READ BACK. If the
+    server does not agree the connection is read only, this raises and
+    the pool hands out nothing — refusing to serve is the correct
+    outcome, because the alternative is serving with the one property
+    this whole design rests on quietly absent.
     """
-    conn.read_only = True
     conn.autocommit = True
+    with conn.cursor() as cur:
+        cur.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+        cur.execute("SELECT current_setting('transaction_read_only')")
+        row = cur.fetchone()
+        if not row or row[0] != "on":
+            raise RuntimeError(
+                "refusing to use a connection that is not READ ONLY: "
+                f"transaction_read_only is {row[0] if row else 'unknown'}. "
+                "This process must never be able to write to Brightbean's "
+                "database."
+            )
+    # Belt as well as braces: keeps psycopg's own view in step, so
+    # anything that inspects the connection sees the same answer the
+    # server would give.
+    conn.read_only = True
 
 
 _pool: ConnectionPool | None = None

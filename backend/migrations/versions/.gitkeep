@@ -1,0 +1,8 @@
+# Alembic revisions land here.
+#
+# The directory is committed EMPTY on purpose: `alembic revision
+# --autogenerate` needs a live database to compare the models against,
+# so the first revision is produced on the server against the real one
+# and committed back. Without this file git would not carry the
+# directory at all, the container's bind mount would create it as root,
+# and alembic would then be unable to write into it.
