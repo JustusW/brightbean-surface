@@ -453,7 +453,12 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 
 main > .empty { margin-top: 40px; }
 
-.feed { max-width: 720px; margin: 0 auto; }
+/* 900, not 720: "increase width of the center column to at least 900".
+   The measure was set for reading prose, but this column carries
+   PHOTOGRAPHS — and a picture 720 wide in a 1280 window is a stamp with
+   margins. The legal pages keep their own 66ch measure on paragraphs, so
+   widening this does not turn the Datenschutzerklärung into a wall. */
+.feed { max-width: 900px; margin: 0 auto; }
 
 .feed h2 {
   font-size: 13px;
@@ -739,8 +744,73 @@ main > .empty { margin-top: 40px; }
 
 /* ---- static pages ---------------------------------------------------- */
 
+/* ---- Platz und Anfahrt: the map and the club's own sketch ------------ */
+
+.anfahrt {
+  margin-top: 28px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 32px 36px 36px;
+  box-shadow: var(--shadow);
+}
+.anfahrt h2 {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  margin: 0 0 14px;
+}
+.anfahrt h2 + h2,
+.anfahrt .anfahrtwege + h2 { margin-top: 34px; }
+
+/* A REAL HEIGHT, because Leaflet measures its container and an element
+   with none renders a grey nothing. 60vh so it is worth looking at on a
+   laptop, capped so it does not eat a tall screen. */
+.karte {
+  height: min(60vh, 460px);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  /* Leaflet's own panes sit at z-index 400+; keeping the map below the
+     header and the dock stops a pin floating over the navigation. */
+  z-index: 0;
+}
+
+.anfahrtwege {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin: 16px 0 0;
+}
+.anfahrtwege a {
+  /* 44px of hit area, like every other control on this site: this is
+     tapped at a road junction by somebody who is already late. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.skizze { margin: 0; }
+.skizze img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.skizze figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
 .page {
-  max-width: 760px;
+  /* 900 to match the feed: "increase width of the center column to at
+     least 900". The prose keeps its own 66ch measure per paragraph, so
+     the legal pages stay readable while the map and the sketch get room
+     to be looked at. */
+  max-width: 900px;
   margin: 0 auto;
   padding: 40px 0 0;
 }

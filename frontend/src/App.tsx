@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Link,
@@ -7,6 +7,17 @@ import {
   useParams,
 } from "react-router-dom";
 import { marked } from "marked";
+/* LOADED ONLY BY THE PAGE THAT USES IT. Leaflet and its stylesheet are
+   about 150 kB, they are needed on ONE page out of eight, and putting
+   them in the main bundle took it from 339 kB to 492 — past the warning
+   limit this project set on purpose, because the site is read on a rural
+   mobile connection at a flying field. A dynamic import lets Vite split
+   it into its own chunk that only Platz und Anfahrt ever fetches.
+
+   Raising the limit was the other option. The build told me the bundle
+   had grown by half and that would have been answering it by turning
+   off the alarm. */
+const Anfahrt = lazy(() => import("./Anfahrt"));
 import Backdrop from "./Backdrop";
 import Hero from "./Hero";
 import Members from "./Members";
@@ -275,6 +286,15 @@ function StaticPage({ site }: { site: Site | null }) {
     return <GalleryPage title={entry?.title ?? "Impressionen"} />;
   }
 
+  // PLATZ UND ANFAHRT GETS A MAP AND THE CLUB'S OWN SKETCH.
+  //
+  // It was prose and a Google link, with no picture at all — "Platz und
+  // Anfahrt still has no images, no OSM, nothing." The map cannot live in
+  // the Markdown, because Markdown renders to HTML and a Leaflet map is a
+  // component that has to be given an element and torn down again. So the
+  // page keeps its prose from the backend and this is appended to it.
+  const withAnfahrt = slug === "platz";
+
   return (
     <main>
       <section className="page">
@@ -302,6 +322,11 @@ function StaticPage({ site }: { site: Site | null }) {
               __html: marked.parse(page.body) as string,
             }}
           />
+        )}
+        {withAnfahrt && page && (
+          <Suspense fallback={<p className="empty">Karte lädt…</p>}>
+            <Anfahrt />
+          </Suspense>
         )}
       </section>
     </main>
