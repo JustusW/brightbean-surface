@@ -225,11 +225,6 @@ a { color: var(--sky-deep); }
   .scrim { transition: none; }
 }
 
-/* A PANEL, NOT RAW TEXT ON A PICTURE. The headline used to float
-   directly over the video, which is why it read as pasted on: nothing
-   connected it to what was behind it. Slight transparency and a soft
-   shadow make it sit IN the image — the film shows through it, and the
-   shadow gives it somewhere to sit. */
 .heroinner {
   position: relative;
   z-index: 1;
@@ -240,24 +235,23 @@ a { color: var(--sky-deep); }
   color: #fff;
 }
 
-.heroinner h1 {
-  display: inline-block;
-  padding: 18px 28px 20px;
-  border-radius: 16px;
-  background: rgba(10, 24, 34, 0.34);
-  backdrop-filter: blur(10px) saturate(130%);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34),
-              inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-}
-
-/* NO text-shadow. The scrim behind the type is what makes it readable —
-   a shadow on top of that is the belt-and-braces move that reads as a
-   default theme, and it muddies the letterforms it is meant to help. */
-/* SMALLER THAN IT WAS. This used to be the club's full name at 68px,
-   directly under a header already carrying the same words — twice over
-   and shouting. It is the tagline now, and its job is to sit in the
-   picture rather than cover it. */
+/* THE SHADOW GOES ON THE LETTERS, AND THERE IS NO BOX.
+ *
+ * What was here was a translucent blurred PANEL behind the headline — a
+ * rounded rectangle floating over the film — and it was a misreading.
+ * The shepherd, on seeing it: "wtf is that box, I said boxshadow, that's
+ * when the individual letters have a bit of a shadow outline and I
+ * wanted them to be individually slightly transparent."
+ *
+ * So: text-shadow, which paints behind each GLYPH rather than behind a
+ * rectangle, and a colour that is not quite opaque, so the film shows
+ * through the letterforms themselves. That is what puts type INTO a
+ * picture. A panel covers the picture up and calls it integration.
+ *
+ * The 20ch measure went with it. It was forcing "RC-Modellflug in
+ * Stutensee" to wrap into two lines inside a box that was already too
+ * small for it; the line fits at 40px in a 1080px measure.
+ */
 .hero h1 {
   font-family: var(--display);
   font-size: clamp(26px, 3.6vw, 40px);
@@ -268,7 +262,19 @@ a { color: var(--sky-deep); }
   font-weight: 600;
   margin: 0;
   text-wrap: balance;
-  max-width: 20ch;
+
+  /* SLIGHTLY TRANSPARENT, PER LETTER. Not far enough to turn grey — at
+     0.86 the film moves behind the strokes and the word still reads as
+     white. */
+  color: rgba(255, 255, 255, 0.86);
+
+  /* TWO SHADOWS DOING TWO DIFFERENT JOBS. The tight one is the outline
+     that keeps a letter legible where it crosses something bright; the
+     wide soft one is what the type sits in, so it belongs to the picture
+     instead of hovering above it. */
+  text-shadow:
+    0 1px 2px rgba(6, 16, 24, 0.65),
+    0 6px 28px rgba(6, 16, 24, 0.55);
 }
 
 /* ---- layout ---------------------------------------------------------- */
@@ -370,6 +376,20 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   filter: blur(28px) brightness(0.55) saturate(120%);
   /* Scaled past the edges so the blur has no visible border. */
   transform: scale(1.2);
+}
+
+/* THE PICTURE IS A BUTTON, so it can be enlarged from a keyboard as
+   well as a mouse. It fills the slide exactly, so nothing about the
+   layout changes — it is the same rectangle, now operable. */
+.zoom {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
 }
 
 .slide img {
@@ -505,15 +525,20 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   flex-wrap: wrap;
 }
 
-/* ---- Impressionen: the picture wall ---------------------------------- */
-/* FULL PAGE WIDTH AND NOT A CAROUSEL. The reference site put its gallery
-   in one, which means seeing forty pictures costs forty clicks and you
-   can never see two at once.
+/* ---- Impressionen: the SAME gallery, at full width -------------------- */
+/* ONE GALLERY, TWO PLACES. The shepherd's instruction, after seeing the
+ * front page and this page side by side: "please use the same gallery in
+ * both places just with one being granted the full width."
  *
- * CSS multi-column rather than grid: columns fill top-to-bottom, so
- * every picture keeps its own shape and the columns simply come out
- * different lengths. A grid would have to impose a cell shape, which
- * means cropping — the mistake the post carousel already made once. */
+ * What was here was a second implementation — a CSS multi-column wall of
+ * raw tiles — and it did not look like the same website. It also
+ * reproduced the thing that had already been rejected: three event
+ * posters standing up as tall portrait slabs, which is the vertical
+ * format the reference site was criticised for.
+ *
+ * So Impressionen renders <Carousel>, exactly as a post does, and the
+ * only difference is the measure it is given.
+ */
 
 main.wide { max-width: 1600px; }
 
@@ -526,30 +551,23 @@ main.wide { max-width: 1600px; }
   margin: 0 0 26px;
 }
 
-.wall {
-  columns: 4 300px;
-  column-gap: 14px;
-}
-
-.tile {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: zoom-in;
-  /* break-inside is what stops a picture being sliced across a column
-     boundary — the single thing that makes multi-column usable for
-     images at all. */
-  break-inside: avoid;
-  margin: 0 0 14px;
-  border-radius: 12px;
+/* The same rounded, shadowed frame a post gives its carousel, so the two
+   are the same object in two contexts rather than two objects. */
+.gallery .carousel {
+  border-radius: 18px;
   overflow: hidden;
   box-shadow: var(--shadow);
-  transition: transform 160ms ease, box-shadow 160ms ease;
 }
-.tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
-.tile img { width: 100%; height: auto; display: block; }
+
+/* HEIGHT RATHER THAN RATIO, AND ONLY HERE. 16:10 across a 1600px measure
+   is a thousand pixels tall — you would scroll to see one picture. Bound
+   it to the viewport instead; the image is object-fit: contain over its
+   own blurred backdrop either way, so nothing is cropped and the frame
+   still fills. */
+.gallery .slide {
+  aspect-ratio: auto;
+  height: min(72vh, 760px);
+}
 
 .lightbox {
   position: fixed;
@@ -583,12 +601,10 @@ main.wide { max-width: 1600px; }
 .lightbox .close:hover { background: rgba(255, 255, 255, 0.26); }
 
 @media (max-width: 780px) {
-  .wall { columns: 2 150px; column-gap: 10px; }
-  .tile { margin-bottom: 10px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tile { transition: none; }
+  /* On a phone the full-width gallery is the same width as anything
+     else, so the viewport-height frame becomes a tall letterbox with
+     slivers of picture in it. Back to the post's own ratio. */
+  .gallery .slide { aspect-ratio: 16 / 10; height: auto; }
 }
 
 /* ---- static pages ---------------------------------------------------- */

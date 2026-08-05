@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FeedMedia } from "./api";
 
-/** The image carousel.
+/** THE gallery. One component, used everywhere pictures are shown.
+ *
+ *  IT USED TO BE TWO. The front page had this; Impressionen had a
+ *  multi-column wall of raw tiles. They did not look like the same
+ *  website — the shepherd, on seeing them side by side: "why does that
+ *  gallery look different than the one on the front page". Two visual
+ *  languages for the same job is not a choice, it is an oversight with a
+ *  rationale written after the fact. So there is one, and Impressionen is
+ *  simply granted the full page width.
  *
  *  WRITTEN HERE RATHER THAN INSTALLED. Not because a library would be a
  *  CDN — everything this project uses is bundled into our own JavaScript
@@ -27,6 +35,7 @@ import type { FeedMedia } from "./api";
 export default function Carousel({ media }: { media: FeedMedia[] }) {
   const track = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const [zoomed, setZoomed] = useState<FeedMedia | null>(null);
 
   const scrollTo = useCallback((i: number) => {
     const el = track.current;
@@ -58,6 +67,19 @@ export default function Carousel({ media }: { media: FeedMedia[] }) {
       el.removeEventListener("scroll", onScroll);
     };
   }, []);
+
+  // ESCAPE CLOSES THE VIEWER. A full-screen overlay with no keyboard way
+  // out is a trap for anybody not using a mouse. This came across from
+  // the old Impressionen wall — merging the two galleries must not cost
+  // the feature the wall had.
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomed(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomed]);
 
   if (media.length === 0) return null;
 
@@ -95,21 +117,31 @@ export default function Carousel({ media }: { media: FeedMedia[] }) {
               aria-hidden="true"
               style={{ backgroundImage: `url(${m.url})` }}
             />
-            <img
-              src={m.url}
-              /* Alt text comes from the media library, where somebody
-                 wrote one. An empty alt is correct for a decorative
-                 image and far better than inventing a description of a
-                 photograph nobody here has seen. */
-              alt={m.alt}
-              width={m.width || undefined}
-              height={m.height || undefined}
-              /* The first image of the first post is usually the largest
-                 thing on the page; lazy-loading it delays the only thing
-                 the visitor came to see. The rest can wait. */
-              loading={i === 0 ? "eager" : "lazy"}
-              decoding="async"
-            />
+            {/* A REAL BUTTON, not a click handler on the image. This has
+                to be reachable and operable from a keyboard, and it has
+                to announce what it does — an <img onClick> is neither. */}
+            <button
+              className="zoom"
+              onClick={() => setZoomed(m)}
+              aria-label={m.alt || `Bild ${i + 1} vergrößern`}
+            >
+              <img
+                src={m.url}
+                /* Alt text comes from the media library, where somebody
+                   wrote one. An empty alt is correct for a decorative
+                   image and far better than inventing a description of a
+                   photograph nobody here has seen. */
+                alt={m.alt}
+                width={m.width || undefined}
+                height={m.height || undefined}
+                /* The first image of the first post is usually the
+                   largest thing on the page; lazy-loading it delays the
+                   only thing the visitor came to see. The rest can
+                   wait. */
+                loading={i === 0 ? "eager" : "lazy"}
+                decoding="async"
+              />
+            </button>
           </div>
         ))}
       </div>
@@ -149,6 +181,21 @@ export default function Carousel({ media }: { media: FeedMedia[] }) {
             {index + 1}/{media.length}
           </div>
         </>
+      )}
+
+      {zoomed && (
+        <div
+          className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bild"
+          onClick={() => setZoomed(null)}
+        >
+          <img src={zoomed.url} alt={zoomed.alt} />
+          <button className="close" aria-label="Schließen">
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

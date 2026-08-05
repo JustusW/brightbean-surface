@@ -1,22 +1,29 @@
 import { useEffect, useState } from "react";
+import Carousel from "./Carousel";
 import { api, type FeedMedia } from "./api";
 
 /** Impressionen — every picture the club has published.
  *
- *  FULL PAGE WIDTH, AND NOT A CAROUSEL. The reference site put its
- *  gallery in one, which means seeing forty pictures costs forty
- *  clicks and you can never see two at once. A grid shows the lot; a
- *  carousel shows one and hides the rest behind an arrow.
+ *  THE SAME GALLERY AS THE FRONT PAGE, given the full page width. The
+ *  shepherd's instruction, after seeing the two side by side: "please use
+ *  the same gallery in both places just with one being granted the full
+ *  width."
  *
- *  MASONRY BY COLUMNS, so nothing is cropped. CSS multi-column fills
- *  top to bottom rather than left to right, which reads slightly oddly
- *  for a list and is exactly right for a picture wall — each image keeps
- *  its own shape and the columns simply come out different lengths.
+ *  What was here before was a second implementation — a CSS multi-column
+ *  wall of raw tiles — and it did not look like the same website. Worse,
+ *  it reproduced the thing that was thrown out in the first place: three
+ *  event posters standing up as tall portrait slabs, which is exactly the
+ *  vertical format the reference site was criticised for.
+ *
+ *  So this file no longer draws anything. It fetches, handles the three
+ *  states, and hands the pictures to Carousel. The width comes from
+ *  <main className="wide"> in App.tsx, and the slide is given a viewport
+ *  height there rather than a 16:10 box — at 1600px wide that ratio would
+ *  be a thousand pixels tall and you would scroll to see one picture.
  */
 export default function Gallery({ title }: { title: string }) {
   const [images, setImages] = useState<FeedMedia[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [open, setOpen] = useState<FeedMedia | null>(null);
 
   useEffect(() => {
     api
@@ -25,21 +32,14 @@ export default function Gallery({ title }: { title: string }) {
       .catch(() => setFailed(true));
   }, []);
 
-  // ESCAPE CLOSES THE VIEWER. A full-screen overlay with no keyboard way
-  // out is a trap for anybody not using a mouse.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
   return (
     <section className="gallery">
       <h1>{title}</h1>
 
+      {/* THREE STATES, AND THEY SAY DIFFERENT THINGS. "still loading",
+          "nothing to show" and "it broke" are not the same news, and
+          collapsing them into one empty page is how a failure gets
+          mistaken for a club that has not posted anything. */}
       {failed && (
         <p className="empty">
           Die Bilder lassen sich gerade nicht laden. Bitte versuchen Sie es
@@ -51,45 +51,7 @@ export default function Gallery({ title }: { title: string }) {
         <p className="empty">Hier erscheinen bald unsere Bilder.</p>
       )}
 
-      {images && images.length > 0 && (
-        <div className="wall">
-          {images.map((m, i) => (
-            <button
-              className="tile"
-              key={i}
-              onClick={() => setOpen(m)}
-              aria-label={m.alt || `Bild ${i + 1} vergrößern`}
-            >
-              <img
-                src={m.url}
-                alt={m.alt}
-                width={m.width || undefined}
-                height={m.height || undefined}
-                /* The first screenful eagerly, the rest on approach: a
-                   club with two hundred photographs should not send all
-                   two hundred to somebody who looks at four. */
-                loading={i < 6 ? "eager" : "lazy"}
-                decoding="async"
-              />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {open && (
-        <div
-          className="lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Bild"
-          onClick={() => setOpen(null)}
-        >
-          <img src={open.url} alt={open.alt} />
-          <button className="close" aria-label="Schließen">
-            ✕
-          </button>
-        </div>
-      )}
+      {images && images.length > 0 && <Carousel media={images} />}
     </section>
   );
 }
