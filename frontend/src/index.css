@@ -62,7 +62,7 @@
      on a phone.
 
      Guessing this is what put the pictures under the hero twice. */
-  --chrome: 402px;
+  --chrome: 252px;
 
   font-family: var(--font);
   font-size: 18px;
@@ -298,7 +298,11 @@ a { color: var(--sky-deep); }
      the number in this file and the number on the screen were different
      things on every machine. 600 now means 600. */
   --hero-large: 600px;
-  --hero-small: 300px;
+  /* 150, not 300: "make the hero go 600/150 on desktop". A quarter of
+     the opening height rather than a half — the band it leaves pinned to
+     the top of every page is a title bar with a photograph in it rather
+     than a third of the screen. */
+  --hero-small: 150px;
   height: var(--hero-large);
 }
 
