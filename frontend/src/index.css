@@ -378,7 +378,12 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 .pic {
   display: block;
   flex: 0 0 auto;
-  height: 220px;
+  /* BIG. The row grows sideways — that was the instruction, and it says
+     nothing about making the pictures smaller. This was 220px, which was
+     my own addition and made a club's photographs into thumbnails; the
+     carousel it replaced showed them at 450. Bounded by the viewport so
+     a picture is never taller than the screen looking at it. */
+  height: min(58vh, 460px);
   scroll-snap-align: start;
   border-radius: 10px;
   overflow: hidden;
@@ -466,11 +471,11 @@ main.wide { max-width: 1600px; }
 }
 
 /* TALLER, BECAUSE THERE IS MORE ROOM. Same component, same tiles, same
-   viewer: this page gets 1600px and 300px-high pictures instead of 220,
-   so more stand side by side and each is bigger. That is the whole of
+   viewer: this page gets 1600px of measure and the pictures take most of
+   the screen's height rather than most of a card's. That is the whole of
    the difference between the two places. */
 .gallery .pics { padding: 0; gap: 10px; }
-.gallery .pic { height: 300px; }
+.gallery .pic { height: min(72vh, 720px); }
 
 /* NO .lightbox OF OUR OWN ANY MORE. There was a hand-written overlay
    here — one <img> in a fixed box, with no pan, no pinch and no way to
@@ -478,14 +483,11 @@ main.wide { max-width: 1600px; }
    it and brings its own stylesheet, so keeping ours would be two
    viewers' worth of CSS with one viewer left to use it. */
 
-@media (max-width: 780px) {
-  /* SHORTER, BUT STILL ONE SCROLLING ROW. Full-width pictures stacked
-     down the page is exactly the vertical growth that is not wanted —
-     and a phone is the one place a sideways swipe is the natural
-     gesture anyway. */
-  .pic { height: 150px; }
-  .gallery .pic { height: 180px; }
-}
+/* NO PHONE OVERRIDE, DELIBERATELY. There was one, and it shrank the
+   pictures to 150px — which was never asked for and turned a club's
+   photographs into stamps. The heights above are already stated against
+   the VIEWPORT, so a phone gets a picture that fills most of its screen
+   and the row still runs sideways. Nothing left to override. */
 
 /* ---- static pages ---------------------------------------------------- */
 
