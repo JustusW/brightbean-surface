@@ -1017,9 +1017,29 @@ main > .empty { margin-top: 40px; }
     --hero-large: 400px;
     --hero-small: 100px;
   }
-  /* And the pictures get that room back: the pinned hero only keeps 100
-     here, so the gallery is measured against 140 rather than 340. */
-  .gal .swiper-slide { height: min(100vh - 140px, 720px); }
+  /* ONE PICTURE AT A TIME ON A PHONE, AND IT FITS THE SCREEN.
+     Measured at 390x844: the auto-width slide came out 469px wide — the
+     photograph and its shadows hanging 79px past the edge of the window,
+     with the picture cropped by the gallery's own overflow. That is what
+     "mobile is broken" looks like from the inside.
+
+     Auto width exists so that several pictures can stand side by side.
+     On a phone there is only ever room for one, so it is given the whole
+     width and contained inside it: nothing is cropped and nothing
+     overflows. This is the same treatment .gal.one gets on a post.
+
+     260 rather than 140: the hero keeps 100, the dock 46, and the rest
+     is air so the picture is not wedged between the two. */
+  .gal .swiper-slide {
+    width: 100%;
+    height: min(100vh - 260px, 560px);
+  }
+  .gal .swiper-slide img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+  }
 
   .heroinner { padding: 0 16px 14px; }
   .prose { padding: 26px 20px 30px; border-radius: 14px; }
