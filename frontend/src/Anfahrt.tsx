@@ -1,6 +1,22 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+/* THE MARKER'S OWN PICTURES, IMPORTED SO THE BUNDLER CAN SEE THEM.
+ *
+ * Without these the pin is a broken image and the browser asks for
+ * /marker-icon.png, which does not exist. Leaflet's default icon builds
+ * its URLs AT RUNTIME by finding its own stylesheet and walking to
+ * ../images/ beside it — an assumption that holds when leaflet.css is
+ * served from node_modules and fails the moment a bundler rewrites the
+ * CSS into a hashed asset, which is exactly what Vite does.
+ *
+ * Imported as modules, Vite emits all three into our own /assets with
+ * content-hashed names and hands back the real URLs. That keeps the
+ * single-origin rule intact: OSM serves the map TILES and nothing else
+ * — no unpkg, no cdnjs, no third party for a 1.5 kB pin. */
+import pinUrl from "leaflet/dist/images/marker-icon.png";
+import pinRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import pinShadowUrl from "leaflet/dist/images/marker-shadow.png";
 
 /** Where the field is, and how to get to it.
  *
@@ -31,6 +47,23 @@ import "leaflet/dist/leaflet.css";
 /** The field, from the club's own page: 49.0797790185139, 8.474364846239842
  *  — a kilometre north of Blankenloch, between the L560 and the L559. */
 const FIELD: [number, number] = [49.07977901851, 8.47436484623];
+
+/** The pin, built explicitly rather than left to L.Icon.Default.
+ *
+ *  THE SIZES ARE LEAFLET'S OWN and are not decoration: the icon is
+ *  25x41, and the anchor at [12, 41] is what puts the POINT of the pin
+ *  on the coordinate instead of its top-left corner — get that wrong and
+ *  the marker sits twenty metres north-west of the runway. popupAnchor
+ *  lifts the bubble clear of the pin's head. */
+const PIN = L.icon({
+  iconUrl: pinUrl,
+  iconRetinaUrl: pinRetinaUrl,
+  shadowUrl: pinShadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
 export default function Anfahrt() {
   const box = useRef<HTMLDivElement>(null);
@@ -63,7 +96,7 @@ export default function Anfahrt() {
         "OpenStreetMap</a>-Mitwirkende",
     }).addTo(map);
 
-    L.marker(FIELD)
+    L.marker(FIELD, { icon: PIN })
       .addTo(map)
       .bindPopup(
         "<strong>Modellflugplatz Blankenloch</strong><br>" +
