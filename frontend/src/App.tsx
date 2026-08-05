@@ -26,17 +26,67 @@ function when(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? "" : DATE.format(d);
 }
 
+/** A heading for a post that has none.
+ *
+ *  Social captions almost never carry a title — the composer's title
+ *  field is for platforms that want one, and Instagram does not. Without
+ *  a heading every card on the page opens with a wall of body text and
+ *  there is nothing to scan.
+ *
+ *  PREFER THE FIRST SENTENCE, and only fall back to chopping at a word
+ *  boundary. "Wir feiern! Das Sommerfest…" gives a heading of "Wir
+ *  feiern!" that reads as though somebody wrote it, where a blind
+ *  eight-word cut would give "Wir feiern! Das Sommerfest des Vereins
+ *  für…" — which is not a title, it is a truncation wearing one's
+ *  clothes.
+ *
+ *  Returns the heading AND what is left, because a heading that repeats
+ *  the first line of the paragraph underneath it looks like a bug. */
+function split(text: string): { title: string; rest: string } {
+  const clean = text.trim();
+  if (!clean) return { title: "", rest: "" };
+
+  // A sentence ending, or the author's own first line break — people
+  // write captions with the hook on its own line, and that intent is
+  // worth more than punctuation.
+  const stop = clean.search(/[.!?](\s|$)|\n/);
+  if (stop > 0 && stop <= 72) {
+    const end = clean[stop] === "\n" ? stop : stop + 1;
+    return {
+      title: clean.slice(0, end).trim(),
+      rest: clean.slice(end).trim(),
+    };
+  }
+
+  // No usable sentence: take whole words up to a readable length and
+  // leave the body intact, because cutting mid-thought would lose text
+  // rather than merely repeat it.
+  const words = clean.split(/\s+/);
+  const taken: string[] = [];
+  for (const w of words) {
+    if (taken.join(" ").length + w.length > 60) break;
+    taken.push(w);
+  }
+  if (taken.length < 2) return { title: "", rest: clean };
+  return { title: taken.join(" ") + "…", rest: clean };
+}
+
 function Post({ item }: { item: FeedItem }) {
   const [open, setOpen] = useState(false);
-  const long = item.text.length > 340;
-  const text = open || !long ? item.text : item.text.slice(0, 340) + "…";
+
+  const derived = item.title ? null : split(item.text);
+  const heading = item.title || derived?.title || "";
+  const body = derived ? derived.rest : item.text;
+
+  const long = body.length > 340;
+  const text = open || !long ? body : body.slice(0, 340) + "…";
 
   return (
     <article className="post">
       <Carousel media={item.media} />
 
       <div className="body">
-        {item.title && <h3>{item.title}</h3>}
+        {heading && <h3>{heading}</h3>}
         {/* Captions are plain text and rendered as such — deliberately
             NOT through the Markdown renderer. They come from social
             posts, and a stray underscore in a hashtag should not turn
