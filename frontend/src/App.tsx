@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Link,
@@ -310,13 +310,41 @@ function StaticPage({ site }: { site: Site | null }) {
 
 function Shell({ site }: { site: Site | null }) {
   const [open, setOpen] = useState(false);
+  const head = useRef<HTMLElement>(null);
+
+  /** HOW TALL THE HEADER IS, measured rather than assumed, and published
+   *  as --header-h for the hero to hang beneath.
+   *
+   *  The hero is position: fixed at the top of the window, and the header
+   *  is sticky and paints OVER it — so the hero's first 56 pixels were
+   *  hidden behind the header on every page. Invisible at 300px and
+   *  glaring at 100: "the 100px there are counted against the header, not
+   *  top of screen." Correct, and the arithmetic should not be a constant
+   *  somebody has to remember to keep in step with the header's padding.
+   *
+   *  NOT MEASURED WHILE THE MENU IS OPEN. On a phone the burger expands
+   *  the header to the height of the whole nav, and pinning the hero
+   *  below THAT would shove it off the screen while somebody is choosing
+   *  a page. The collapsed height is the one that matters. */
+  useEffect(() => {
+    const measure = () => {
+      const el = head.current;
+      if (!el || open) return;
+      document.documentElement.style.setProperty(
+        "--header-h", `${Math.round(el.getBoundingClientRect().height)}px`);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [open]);
+
   return (
     <>
       {/* The airfield, behind everything, panning as you scroll. Fixed
           and pointer-events: none, so it is scenery and nothing else. */}
       <Backdrop />
 
-      <header className="top">
+      <header className="top" ref={head}>
         <div className="topinner">
           <Link className="brand" to="/" onClick={() => setOpen(false)}>
             {site?.title ?? "VFM Stutensee"}

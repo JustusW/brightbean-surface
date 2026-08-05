@@ -55,6 +55,15 @@
      what keeps the document's height from changing as it shrinks. */
   --grow: 1;
 
+  /* WHAT THE PAGE FURNITURE PERMANENTLY COSTS: the header, the resting
+     hero, and the dock. Everything that has to FIT ON SCREEN is measured
+     against this rather than against the whole viewport, because none of
+     those three ever goes away — 56 + 300 + 46 here, and 56 + 100 + 46
+     on a phone.
+
+     Guessing this is what put the pictures under the hero twice. */
+  --chrome: 402px;
+
   font-family: var(--font);
   font-size: 18px;
   color: var(--ink);
@@ -322,7 +331,16 @@ a { color: var(--sky-deep); }
  * chance to be a scrollbar too wide. Two edges cannot be. */
 .hero {
   position: fixed;
-  top: 0;
+  /* BELOW THE HEADER, NOT AT THE TOP OF THE SCREEN. The header is sticky
+     and paints over this, so at top: 0 the hero's first 56 pixels were
+     simply hidden behind it — barely visible at 300px, and more than
+     half the band at 100: "the 100px there are counted against the
+     header, not top of screen."
+
+     App.tsx measures the header and publishes --header-h, so this cannot
+     drift out of step with the header's own padding. The fallback is
+     what it measures at today. */
+  top: var(--header-h, 56px);
   left: 0;
   right: 0;
   /* Under the header (20) and the dock (30), over the page. */
@@ -559,11 +577,16 @@ main > .empty { margin-top: 40px; }
 .gal .swiper-slide {
   width: auto;
   /* SIZED TO THE WINDOW THAT IS ACTUALLY LEFT. The hero is pinned and
-     never gives back its last 300px, so a picture measured against the
-     whole viewport is guaranteed to have its bottom hidden underneath
-     it — "the images are always cutoff". 340 is that 300 plus a little
-     air. The 720 cap still applies on a tall screen. */
-  height: min(100vh - 340px, 720px);
+     never gives back its resting height, the header never goes away and
+     neither does the dock — so a picture measured against the whole
+     viewport is guaranteed to have its foot hidden underneath something.
+     That is "the images are always cutoff".
+
+     --chrome is the sum of those three, declared once at the top of this
+     file and corrected in one place per breakpoint, plus 24 of air. I
+     had 340 here, which was the hero and the dock and a forgotten
+     header — the same omission the hero itself was making. */
+  height: min(100vh - var(--chrome) - 24px, 720px);
 }
 
 /* Auto-width slides size themselves from the picture: fix the height and
@@ -1017,6 +1040,10 @@ main > .empty { margin-top: 40px; }
     --hero-large: 400px;
     --hero-small: 100px;
   }
+  /* And the furniture shrinks with it: header 56, resting hero 100,
+     dock 46. Corrected HERE, in one place, so nothing downstream has to
+     know which breakpoint it is in. */
+  :root { --chrome: 202px; }
   /* ONE PICTURE AT A TIME ON A PHONE, AND IT FITS THE SCREEN.
      Measured at 390x844: the auto-width slide came out 469px wide — the
      photograph and its shadows hanging 79px past the edge of the window,
@@ -1032,7 +1059,7 @@ main > .empty { margin-top: 40px; }
      is air so the picture is not wedged between the two. */
   .gal .swiper-slide {
     width: 100%;
-    height: min(100vh - 260px, 560px);
+    height: min(100vh - var(--chrome) - 24px, 560px);
   }
   .gal .swiper-slide img {
     width: 100%;
