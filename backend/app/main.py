@@ -13,9 +13,11 @@ read_only so PostgreSQL would refuse one anyway. See backend/app/db.py.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import config as config_module
 from . import db
@@ -131,7 +133,7 @@ def page(slug: str) -> dict:
 
 
 @app.get("/api/healthz")
-def healthz() -> JSONResponse:
+def healthz_impl() -> JSONResponse:
     """Liveness, and the invariant.
 
     It reports whether the connection is REALLY read only, asked of
@@ -145,3 +147,46 @@ def healthz() -> JSONResponse:
         return JSONResponse(status_code=503,
                             content={"ok": False, "database": False})
     return JSONResponse(content={"ok": True, **state})
+
+
+# ---------------------------------------------------------------------------
+# The built frontend, served by this same process
+# ---------------------------------------------------------------------------
+#
+# ONE UPSTREAM. nginx proxies everything for this hostname here, so
+# splitting static files onto a second server would mean a second thing
+# to deploy, a second thing to keep in step with the first, and an nginx
+# change every time either moved.
+#
+# DECLARED AFTER EVERY /api ROUTE, DELIBERATELY. Starlette matches routes
+# in the order they are added, so a catch-all registered earlier would
+# swallow the API and every endpoint above would answer with index.html —
+# which looks like the backend having silently died rather than like a
+# routing mistake.
+
+STATIC = Path(__file__).resolve().parents[1] / "static"
+
+if (STATIC / "index.html").is_file():
+    # Hashed asset filenames, so they can be cached hard and for ever:
+    # a changed file gets a changed name, which is what the hash is for.
+    app.mount("/assets", StaticFiles(directory=STATIC / "assets"),
+              name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str) -> FileResponse:
+        """Serve a real file if there is one, otherwise the app.
+
+        THE FALLBACK IS THE POINT. /platz and /impressum are routes owned
+        by the browser-side router; they are not files, and a plain
+        static server answers 404 for them. That breaks exactly the cases
+        that matter — somebody following a link to the Impressum, or
+        reloading a page that is already open — while the site appears to
+        work perfectly if you only ever click from the front page.
+        """
+        candidate = (STATIC / path).resolve()
+        # Confined to STATIC: `path` comes from the URL, and without this
+        # a request for ../../etc/passwd would be served happily.
+        if (path and candidate.is_file()
+                and candidate.is_relative_to(STATIC)):
+            return FileResponse(candidate)
+        return FileResponse(STATIC / "index.html")
