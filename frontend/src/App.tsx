@@ -395,6 +395,27 @@ function Shell({ site }: { site: Site | null }) {
                 {l.title}
               </Link>
             ))}
+            {/* THE WAY IN, and it has to be here rather than in the
+                config-driven list above.
+
+                This used to carry a comment saying the members area was
+                "reachable by address until the club decides to link
+                it", which was a decision dressed up as a principle: a
+                sign-in page you can only reach by being told its URL is
+                not a sign-in page. Asked how to sign in, the only
+                honest answer was to quote a path.
+
+                It cannot come from /api/site like the others, because
+                those are Markdown pages fetched by slug and this is a
+                browser-side route with no /api/page behind it — putting
+                it in that list would render "Seite nicht gefunden". */}
+            <Link
+              className="anmelden"
+              to="/mitglieder"
+              onClick={() => setOpen(false)}
+            >
+              Mitglieder
+            </Link>
           </nav>
         </div>
       </header>
