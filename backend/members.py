@@ -30,6 +30,7 @@ import sys
 
 from sqlalchemy import select
 
+from app import mail
 from app.models import Identity, Member
 from app.models import Session as SessionRow
 from app.store import engine
@@ -161,6 +162,49 @@ def set_flag(session, email: str, *, approved: bool | None = None,
     return 0
 
 
+def testmail(to: str) -> int:
+    """Send ONE message, and say plainly whether the relay took it.
+
+    THE SMOKE TEST, and it exists before anything depends on it. The
+    next two features — verifying an address at signup, and resetting a
+    forgotten password — are both a token in a database plus a link in
+    an email, and if the email half does not work then both of them
+    fail in the one way that is hardest to see: silently, at the moment
+    a member is waiting for a message that will never come.
+
+    So the pipe gets proven on its own first, with nothing else in the
+    way. It reports the configuration it is about to use — never the
+    password — because "it did not send" and "it was never configured"
+    are different faults with the same symptom.
+    """
+    print(f"  host      {mail.SMTP_HOST or '(not set)'}:{mail.SMTP_PORT}")
+    print(f"  user      {mail.SMTP_USER or '(not set)'}")
+    print(f"  from      {mail.MAIL_FROM or '(not set)'}")
+    # The presence of the secret, never the secret. An operator needs to
+    # know whether it arrived; nobody needs it printed into a job log.
+    print(f"  password  {'set' if mail.SMTP_PASSWORD else 'NOT SET'}")
+    print(f"  to        {to}\n")
+
+    if not mail.configured():
+        print("mail is not configured — nothing was sent.", file=sys.stderr)
+        print("The install action writes SURFACE_SMTP_* into .env, read "
+              "out of the machine's own /etc/msmtprc.", file=sys.stderr)
+        return 1
+
+    ok = mail.send(
+        to,
+        "Testnachricht vom Mitgliederbereich",
+        "Diese Nachricht bestätigt, dass der Mitgliederbereich der "
+        "Vereinswebsite E-Mails versenden kann.\n\n"
+        "Sie wurde von Hand ausgelöst und erfordert keine Reaktion.\n",
+    )
+    print("the relay accepted it" if ok else "the relay did NOT accept it")
+    # AN EXIT CODE, so the Vogelwarte action that runs this fails loudly
+    # rather than printing a cheerful line and returning success — which
+    # is the exact shape of four separate faults in this project already.
+    return 0 if ok else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="what", required=True)
@@ -171,7 +215,19 @@ def main() -> int:
                  "admin", "unadmin"):
         one = sub.add_parser(name)
         one.add_argument("email")
+    # ITS OWN PARSER, because the address is a RECIPIENT and not a
+    # member: every verb above looks an account up by it, and this one
+    # deliberately does not require the address to belong to anybody.
+    sub.add_parser("testmail").add_argument("to")
     args = parser.parse_args()
+
+    # ANSWERED BEFORE THE DATABASE IS EVER OPENED, deliberately. This
+    # verb tests the mail relay; making it need a working database too
+    # would mean a mail fault and a database fault produce the same
+    # error, which is how an evening gets spent debugging the wrong
+    # half.
+    if args.what == "testmail":
+        return testmail(args.to)
 
     from sqlalchemy.orm import Session
     with Session(engine()) as session:
