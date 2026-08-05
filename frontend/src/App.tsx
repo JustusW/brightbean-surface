@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Link,
   Route,
@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { marked } from "marked";
 import Gallery from "./Gallery";
+import Hero from "./Hero";
 import PhotoGallery from "./PhotoGallery";
 import { api, type FeedItem, type PageContent, type Site } from "./api";
 
@@ -125,96 +126,6 @@ function Post({ item }: { item: FeedItem }) {
   );
 }
 
-/** The hero: the club's own film, with a play button in front of it.
- *
- *  MADE BY THE CLUB'S 1. VORSITZENDER, and used as it is — not
- *  re-encoded, not shortened, not muted into a decorative loop behind
- *  text. It is somebody's work, so it gets played rather than used as
- *  wallpaper.
- *
- *  CLICK TO PLAY, AND THE BUTTON WAITS UNTIL IT CAN ACTUALLY PLAY. A
- *  play control that is pressable before the video is ready gives you a
- *  frozen frame and no explanation; this one says it is loading and
- *  becomes pressable at `canplaythrough`, so pressing it always does
- *  what it looks like it will do.
- *
- *  The poster frame is a still from the film itself, so the hero is
- *  never empty while 15 MB arrives. */
-function Hero({ site }: { site: Site | null }) {
-  const video = useRef<HTMLVideoElement>(null);
-  const timer = useRef<number | undefined>(undefined);
-
-  /** The BACKGROUND becomes the film. Nothing moves, nothing resizes,
-   *  no control appears — the still is the video's own first frame, so
-   *  starting it is the picture coming to life at exactly the scale it
-   *  already occupied.
-   *
-   *  MUTED, AND THAT IS NOT TIMIDITY. A hover is not a user gesture as
-   *  far as a browser is concerned, so an unmuted play() on hover is
-   *  simply refused and the visitor gets a still picture and no reason
-   *  why. Muted always plays. It is also the only defensible behaviour
-   *  for something that starts by itself: a page that begins talking
-   *  because a cursor rested on it is a page people close. */
-  const start = () => {
-    const el = video.current;
-    if (!el || !el.paused) return;
-    el.play().catch(() => {
-      /* Refused — the poster frame stays, which is a perfectly good
-         hero. Nothing to report and nothing the visitor can do. */
-    });
-  };
-
-  // THREE SECONDS OF HOVER, cancelled the moment the pointer leaves.
-  // Without the cancel, sweeping the cursor across the page on the way
-  // to the navigation would start the film three seconds later, from
-  // somewhere else entirely.
-  const hoverIn = () => {
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(start, 3000);
-  };
-  const hoverOut = () => window.clearTimeout(timer.current);
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-
-  return (
-    <section
-      className="hero"
-      onClick={start}
-      onMouseEnter={hoverIn}
-      onMouseLeave={hoverOut}
-    >
-      <video
-        ref={video}
-        className="film"
-        src="/vfm-hero.mp4"
-        poster="/vfm-hero.jpg"
-        preload="auto"
-        muted
-        loop
-        // playsInline stops iOS taking the video fullscreen the instant
-        // it plays, which would throw the visitor out of the page.
-        playsInline
-        // It is scenery. Announcing it, or letting the tab key land on
-        // it, offers a control that does nothing anybody needs.
-        aria-hidden="true"
-        tabIndex={-1}
-      />
-
-      <div className="scrim" aria-hidden="true" />
-
-      <div className="heroinner">
-        {/* THE CLUB'S NAME IS NOT REPEATED HERE. It is in the header,
-            which is sticky and therefore on screen at every scroll
-            position — printing it again immediately underneath, at
-            three times the size, said the same thing twice and made the
-            hero shout. The tagline carries the page's one h1; the
-            identity is where it already was. */}
-        <h1>{site?.tagline || site?.title || "RC-Modellflug in Stutensee"}</h1>
-      </div>
-    </section>
-  );
-}
-
 function Feed({ site }: { site: Site | null }) {
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -228,7 +139,16 @@ function Feed({ site }: { site: Site | null }) {
 
   return (
     <>
-      <Hero site={site} />
+      {/* THE CLUB'S NAME IS NOT REPEATED HERE. It is in the header,
+          which is sticky and therefore on screen at every scroll
+          position — printing it again immediately underneath, at three
+          times the size, said the same thing twice and made the hero
+          shout. The tagline carries the page's one h1. */}
+      <Hero
+        title={site?.tagline || site?.title || "RC-Modellflug in Stutensee"}
+        video="/vfm-hero.mp4"
+        poster="/vfm-hero.jpg"
+      />
       <main>
         <section className="feed">
           <h2>Aktuelles</h2>
