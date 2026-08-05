@@ -633,24 +633,26 @@ main > .empty { margin-top: 40px; }
   pointer-events: none;
 }
 
-/* COVERFLOW'S SHADOWS MUST NOT EAT THE CLICK, and this is what was
-   breaking the viewer on "the second and third picture".
+/* A DISABLED ARROW STILL SWALLOWS THE CLICK.
+ *
+ * Swiper's own stylesheet gives .swiper-button-disabled
+ * `pointer-events: none`, so at the end of the row the arrow stops
+ * catching clicks and the one aimed at it falls straight through onto
+ * the photograph — which opens the full-screen viewer. Reported exactly:
+ * "the last picture doesn't have a next picture button so clicking the
+ * same spot opens the zoom."
+ *
+ * It stays visible and faded, so it is plain there is nothing further,
+ * and it keeps absorbing the click — pressing a dead button should do
+ * nothing, not something else. */
+.gal .swiper-button-disabled {
+  pointer-events: auto;
+  cursor: default;
+}
 
-   slideShadows inserts a .swiper-slide-shadow-left / -right overlay
-   INSIDE each rotated slide, covering the photograph. The CENTRED slide
-   is not rotated and gets no overlay — so picture one opened and its
-   neighbours did not, and no amount of moving the handler around helped
-   because the handler was never reached. Two deploys were spent on
-   that.
-
-   pointer-events: none lets the click through to the picture and costs
-   the effect nothing: they are decoration and were never meant to be
-   targets. */
-.gal .swiper-slide-shadow,
-.gal .swiper-slide-shadow-left,
-.gal .swiper-slide-shadow-right,
-.gal .swiper-slide-shadow-top,
-.gal .swiper-slide-shadow-bottom { pointer-events: none; }
+/* The coverflow shadow rules that were here are gone with the effect
+   itself. Those classes no longer exist: no 3D, no rotated slides, no
+   overlays — and no hit box sitting somewhere other than the picture. */
 
 /* The slides sit ON the backdrop rather than under it. */
 .gal .swiper-wrapper { position: relative; z-index: 1; }

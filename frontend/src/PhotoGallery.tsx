@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import {
   A11y,
-  EffectCoverflow,
   Keyboard,
   Mousewheel,
   Navigation,
@@ -10,7 +9,6 @@ import {
   Zoom,
 } from "swiper/modules";
 import "swiper/css";
-import "swiper/css/effect-coverflow";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import "swiper/css/zoom";
@@ -117,20 +115,19 @@ export default function PhotoGallery({
           Keyboard,
           Mousewheel,
           Zoom,
-          EffectCoverflow,
           A11y,
         ]}
-        effect="coverflow"
-        /* Coverflow turns the slides around the one it is centred on, so
-           it needs one to be centred. */
+        /* NO COVERFLOW. THE 3D EFFECT IS GONE, on instruction — "the
+           transformation flickers... take it out and make it a normal
+           effect" — and it takes a whole class of defect with it.
+           
+           Coverflow rotated every non-centred slide in 3D, which moved
+           its HIT BOX away from where it was drawn. That is what broke
+           clicking picture two and three, and it survived four attempts
+           to fix it at the handler because the handler was never the
+           problem. A plain slide effect has no transform, so a picture
+           is where it looks. */
         centeredSlides
-        coverflowEffect={{
-          rotate: 32,
-          stretch: 0,
-          depth: 140,
-          modifier: 1,
-          slideShadows: true,
-        }}
         /* Natural width per slide at a shared height, so as many as fit
            are shown. It is what lets one component serve both places: the
            page decides the room and the gallery fills it. */
@@ -144,6 +141,23 @@ export default function PhotoGallery({
            in view, so with three slides all visible one click went to the
            last. The arrows now move picture by picture. */
         slidesPerGroup={1}
+        /* LOAD THE NEIGHBOURS, or an auto-width slide has no width.
+           lazyPreloadPrevNext defaults to 0 — "Number of next and
+           previous slides to preload. Only applicable if using lazy
+           loading" — and the images here are lazy past the fourth. With
+           three pictures that never showed. With the 53 the import
+           brought in, MEASURED: neighbouring slides came out 15x34 and
+           5x51 instead of 474 tall, because an <img> that has not loaded
+           gives `width: auto` nothing to work with, and coverflow then
+           threw their hit boxes thousands of pixels off screen. That is
+           why clicking picture two did nothing: the element was not
+           where it was drawn. */
+        lazyPreloadPrevNext={3}
+        /* AND RE-LAY-OUT WHEN THEY ARRIVE. Both default to false. Without
+           them a picture that loads after layout leaves the slide at
+           whatever wrong size it was measured at. */
+        observer
+        observeSlideChildren
         grabCursor
         navigation={many}
         pagination={
