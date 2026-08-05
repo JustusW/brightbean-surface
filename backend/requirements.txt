@@ -1,15 +1,53 @@
 # Deliberately short. This is a public website's backend: every package
 # here is one more thing to patch on a machine whose brief is to need no
 # attention, and one more way in.
-#
-# tomllib is in the standard library from Python 3.11, so the
-# configuration format costs nothing.
 
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 
 # psycopg 3, binary build so there is no libpq to install alongside it.
-# The connection is opened read_only — see backend/app/db.py — which is
-# PostgreSQL refusing writes rather than this code promising not to make
-# any.
 psycopg[binary,pool]==3.2.3
+
+# ---------------------------------------------------------------------
+# The surface's OWN database — members, sessions, identities.
+# ---------------------------------------------------------------------
+#
+# TWO DATABASES, TWO ACCESS STYLES, AND THE SPLIT IS DELIBERATE:
+#
+#   BRIGHTBEAN'S    read-only, raw SQL, no ORM and no migrations. That
+#                   schema is not ours. Mapping it into models here
+#                   would create a second declaration of somebody else's
+#                   tables that drifts from theirs silently - the
+#                   coupling is real either way, so it is kept explicit
+#                   and in one file (app/db.py) where a Brightbean
+#                   migration breaks loudly.
+#
+#   OURS            read-write, SQLAlchemy models, Alembic migrations
+#                   GENERATED with --autogenerate. We own this schema, so
+#                   it gets declared once and the DDL is derived from the
+#                   declaration rather than typed twice.
+SQLAlchemy==2.0.36
+alembic==1.14.0
+
+# ---------------------------------------------------------------------
+# Members: signup AND sign-in with Google. Both, not either.
+# ---------------------------------------------------------------------
+
+# Argon2id. NOT a bare hashlib call and not bcrypt-by-habit: this stores
+# passwords for a public signup form on the internet, argon2 is what the
+# OWASP guidance names first, and the parameters are the library's
+# maintained defaults rather than numbers somebody picked in 2015.
+argon2-cffi==23.1.0
+
+# The Google OAuth leg. httpx does the token exchange; authlib validates
+# the ID token's signature, issuer, audience and expiry against Google's
+# published keys. Doing that by hand is exactly the code that looks
+# finished and accepts a forged token - the signature check is the whole
+# security property, and skipping it turns "sign in with Google" into
+# "tell me who you are and I will believe you".
+httpx==0.28.1
+authlib==1.4.0
+
+# Session cookies that carry a signature, so a cookie cannot be edited
+# into somebody else's session.
+itsdangerous==2.2.0

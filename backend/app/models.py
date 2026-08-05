@@ -1,0 +1,181 @@
+"""The surface's OWN schema — members and how they sign in.
+
+DECLARED ONCE, HERE. Alembic derives the migrations from these models
+with --autogenerate, so the DDL is never typed a second time and cannot
+disagree with the code that uses it.
+
+NOTHING BRIGHTBEAN OWNS IS MAPPED HERE. Its tables are read with raw SQL
+in app/db.py, over a connection PostgreSQL itself holds read-only. That
+is not squeamishness: an ORM model of somebody else's table is a second
+declaration of it, and the two drift apart silently the first time they
+migrate something. This file is only the things we own and may change.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    """The declarative base Alembic's autogenerate compares against.
+
+    Anything not reachable from this metadata is invisible to
+    --autogenerate, which is why every model in this file inherits from
+    it and why there is exactly one Base.
+    """
+
+
+def _uuid_pk() -> Mapped[uuid.UUID]:
+    return mapped_column(PgUUID(as_uuid=True), primary_key=True,
+                         default=uuid.uuid4)
+
+
+class Member(Base):
+    """Somebody with an account on the club's website.
+
+    A member may have arrived by SIGNING UP with an email and password,
+    by SIGNING IN WITH GOOGLE, or both — the two are not alternatives and
+    the same person must not end up with two accounts because they used a
+    different button on a different day. That is what `email` being
+    unique and `Identity` being a separate table is for.
+    """
+
+    __tablename__ = "member"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+
+    # LOWERCASED BEFORE IT GETS HERE, and unique. Two accounts for
+    # Justus@example.org and justus@example.org is the classic way a
+    # "sign in with Google" button silently creates a duplicate of an
+    # account somebody already had - the addresses are the same mailbox,
+    # and the database has to agree.
+    email: Mapped[str] = mapped_column(String(320), unique=True,
+                                       nullable=False, index=True)
+
+    display_name: Mapped[str] = mapped_column(String(120), nullable=False,
+                                              default="")
+
+    # NULLABLE ON PURPOSE. A member who only ever signs in with Google has
+    # no password, and storing a placeholder hash would be a credential
+    # that exists and can be attacked for an account that never had one.
+    # NULL means "this account has no password", which is a different and
+    # honest thing from "the password is empty".
+    password_hash: Mapped[str | None] = mapped_column(String(255),
+                                                      nullable=True)
+
+    # An account exists before it is allowed in. Signup does not itself
+    # grant membership of the club.
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                            default=True)
+    is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                              default=False)
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                                 default=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True)
+
+    identities: Mapped[list["Identity"]] = relationship(
+        back_populates="member", cascade="all, delete-orphan")
+    sessions: Mapped[list["Session"]] = relationship(
+        back_populates="member", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<Member {self.email}>"
+
+
+class Identity(Base):
+    """A federated sign-in attached to a member.
+
+    Separate from Member so one person can hold several — Google today,
+    something else later — without the member row growing a column per
+    provider, and so that connecting a second provider to an existing
+    account is an INSERT rather than a schema change.
+    """
+
+    __tablename__ = "identity"
+    __table_args__ = (
+        # THE SAME GOOGLE ACCOUNT MUST NOT ATTACH TO TWO MEMBERS. Without
+        # this, a race between two signups - or a bug in the callback -
+        # silently splits one person across two accounts, and which one
+        # they land in becomes a matter of timing.
+        UniqueConstraint("provider", "subject", name="uq_identity_provider_subject"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("member.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    # GOOGLE'S `sub` CLAIM, NOT THE EMAIL ADDRESS. Google documents `sub`
+    # as the stable identifier for an account; an email can be changed by
+    # its owner, and keying on it means a member who renames their Google
+    # address becomes a stranger to us.
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # What the provider last told us, kept for display only. Never used to
+    # decide who somebody is.
+    email: Mapped[str] = mapped_column(String(320), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    member: Mapped[Member] = relationship(back_populates="identities")
+
+    def __repr__(self) -> str:
+        return f"<Identity {self.provider}:{self.subject}>"
+
+
+class Session(Base):
+    """A signed-in browser.
+
+    SERVER-SIDE, DELIBERATELY. The cookie carries this row's id and
+    nothing else, so signing somebody out is a DELETE that takes effect
+    immediately. A self-contained token cannot be revoked before it
+    expires — which is exactly the property you want on the day an
+    account turns out to be compromised.
+    """
+
+    __tablename__ = "session"
+
+    # NOT a UUID default: this value IS the credential in the cookie, so
+    # it is generated with secrets.token_urlsafe at creation rather than
+    # by a scheme whose output is guessable from another one.
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("member.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+    # Read on every authenticated request, so it is indexed: expiring
+    # sessions are swept by a query on this column.
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True)
+
+    # For the member's own "where am I signed in" list later. Truncated
+    # rather than stored whole - a full user agent string is fingerprint
+    # material and we have no use for it.
+    user_agent: Mapped[str] = mapped_column(String(200), nullable=False,
+                                            default="")
+
+    member: Mapped[Member] = relationship(back_populates="sessions")
+
+    def __repr__(self) -> str:
+        return f"<Session {self.id[:8]}… member={self.member_id}>"
