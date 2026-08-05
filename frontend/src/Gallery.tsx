@@ -33,7 +33,22 @@ export default function Gallery({ title }: { title: string }) {
 
   return (
     <section className="gallery">
-      <h1>{title}</h1>
+      {/* THE HERO. The club's own photograph — members watching something
+          fly, which is what this page is about — cut down to thirty
+          pixels above the first hat so the frame opens on the people
+          rather than on empty sky. Vendored into our own assets rather
+          than linked from where it was found: a visitor's browser talks
+          to this origin and the club's media host, and nothing else.
+
+          alt is empty on purpose. It is decoration behind the page's own
+          heading, and describing it again would make a screen reader read
+          the same thing twice. */}
+      <div className="galhero">
+        <img src="/impressionen-hero.jpg" alt="" />
+        <div className="galheroin">
+          <h1>{title}</h1>
+        </div>
+      </div>
 
       {/* THREE STATES, AND THEY SAY DIFFERENT THINGS. "still loading",
           "nothing to show" and "it broke" are not the same news, and
