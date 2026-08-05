@@ -18,7 +18,9 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
+from . import auth
 from . import config as config_module
 from . import db
 
@@ -187,6 +189,40 @@ def healthz_impl() -> JSONResponse:
         return JSONResponse(status_code=503,
                             content={"ok": False, "database": False})
     return JSONResponse(content={"ok": True, **state})
+
+
+# ---------------------------------------------------------------------------
+# Members
+# ---------------------------------------------------------------------------
+#
+# THE SESSION MIDDLEWARE IS AUTHLIB'S REQUIREMENT, not a design choice
+# of ours. Its documentation, on the FastAPI page: "we need this to save
+# temporary code & state in session". That is where authorize_redirect
+# puts the state, the nonce and the PKCE verifier, and where
+# authorize_access_token reads them back to compare.
+#
+# IT IS NOT THE LOGIN SESSION. That is a row in our own database and a
+# separate cookie carrying only its id. This one lives for the length of
+# one round trip to Google and then stops mattering, which is why
+# max_age is ten minutes rather than thirty days: a cookie that only
+# needs to survive a redirect should not outlive it.
+if auth.google_configured():
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=auth.SESSION_SECRET,
+        session_cookie="vfm_oauth",
+        max_age=600,
+        same_site="lax",
+        https_only=auth.HTTPS,
+    )
+
+# INCLUDED AFTER THE PUBLIC ENDPOINTS AND BEFORE THE CATCH-ALL, and the
+# position is load-bearing rather than tidy. Starlette matches routes in
+# the order they are added, so a router registered after the SPA
+# fallback below would never be reached: every /api/auth call would be
+# answered with index.html, and the members area would fail by rendering
+# a perfectly good web page.
+app.include_router(auth.router)
 
 
 # ---------------------------------------------------------------------------

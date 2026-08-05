@@ -49,6 +49,46 @@ export default function Members() {
       .finally(() => setAsked(true));
   }, []);
 
+  /** WHAT WENT WRONG ON THE WAY BACK FROM GOOGLE.
+   *
+   *  The browser leaves this origin entirely and returns as a fresh
+   *  navigation, so there is no promise to catch and no state that
+   *  survived — the only channel left is the URL. The callback puts a
+   *  short code there and this turns it into German.
+   *
+   *  WITHOUT THIS, A REFUSED GOOGLE LOGIN LANDS ON A PERFECTLY ORDINARY
+   *  LOGIN FORM with no explanation, which is precisely the failure
+   *  this page was written to avoid: Brightbean does exactly that when
+   *  it refuses a password, and it cost an hour of looking at cookies
+   *  and proxies for what was a typo. */
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("fehler");
+    if (!code) return;
+    const said: Record<string, string> = {
+      abgebrochen: "Die Anmeldung mit Google wurde abgebrochen.",
+      "nicht-eingerichtet":
+        "Die Anmeldung mit Google ist auf diesem Server nicht eingerichtet.",
+      unbestaetigt:
+        "Google hat diese E-Mail-Adresse nicht bestätigt. Bitte bestätige " +
+        "sie bei Google oder lege ein Konto mit Passwort an.",
+      deaktiviert:
+        "Dieses Konto ist deaktiviert. Bitte wende Dich an den Vorstand.",
+    };
+    setError(
+      said[code] ??
+        // Everything else — a failed state check, a rotated key, a
+        // network fault — means the same thing to the person reading
+        // it: we could not establish who they are. Which of them it was
+        // is a fact about an attack or an outage, and naming it here
+        // would tell an attacker as much as a member.
+        "Die Anmeldung mit Google hat nicht geklappt. Bitte versuche es " +
+          "noch einmal.",
+    );
+    // Take it back out of the address bar, so a reload or a shared link
+    // does not resurrect an error that has been read and dealt with.
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
