@@ -26,7 +26,7 @@ import { useEffect, useRef } from "react";
  *  can never come into view. Measuring the real overflow instead would
  *  mean reading layout back on every resize to learn a number we are
  *  already free to choose. */
-const PAN = 240;
+const PAN = 560;
 
 export default function Backdrop() {
   const root = useRef<HTMLDivElement>(null);
@@ -35,13 +35,15 @@ export default function Backdrop() {
     const el = root.current;
     if (!el) return;
 
-    // MOTION IS A PREFERENCE, and this is decoration. Somebody who has
-    // asked their system for reduced motion gets the picture, standing
-    // still.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      el.style.setProperty("--pan", "0px");
-      return;
-    }
+    // THE prefers-reduced-motion BRANCH THAT WAS HERE IS GONE, for the
+    // same reason as the one in Hero.tsx and with the same evidence: it
+    // set --pan to 0px and returned, so on a machine asking for reduced
+    // motion the backdrop did not pan AT ALL. "the pan is nowhere NEAR
+    // strong enough" was not a weak number, it was a dead feature — the
+    // number had never once run on the screen it was being judged on.
+    //
+    // It moves only when the reader scrolls, and only ever sideways,
+    // behind everything, at half opacity.
 
     let frame = 0;
     const apply = () => {

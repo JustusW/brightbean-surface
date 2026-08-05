@@ -89,11 +89,35 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
     // into a rubber band and the page reads as "basically unscrollable".
     const docEl = document.documentElement;
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      docEl.style.setProperty("--grow", "0");
-      el.style.setProperty("--pan", "0px");
-      return;
-    }
+    // NO prefers-reduced-motion BRANCH HERE ANY MORE, AND IT IS THE BUG
+    // THAT HAS BEEN WASTING EVERYBODY'S TIME.
+    //
+    // There was one, and it pinned --grow to 0 and --pan to 0px and
+    // returned. On a machine that asks for reduced motion — which
+    // Windows does whenever "Show animations in Windows" is off — the
+    // hero therefore sat at its SMALL height for ever, never reached its
+    // full height, and did not hold against the scroll. Word for word
+    // what was reported from the live page: "the hero is 300px
+    // permanently, still isn't sticking around when scrolling and it
+    // never actually reaches the 600px it's supposed to shrink FROM".
+    //
+    // MEASURED, with Playwright's reduced_motion="reduce": 300 at rest,
+    // 300 after scrolling, ratio 1.00, media moved the full 600 — beside
+    // an ordinary browser on the same build reading 600, 300, 2.00 and
+    // held. Every earlier round of "the size is STILL not what I fucking
+    // told you" was this branch, and I kept measuring in the one browser
+    // that could not see it.
+    //
+    // The shrink is a DIRECT RESPONSE TO THE READER'S OWN SCROLLING —
+    // nothing moves unless they move it — and it is the thing the site
+    // was asked for. What stays behind the preference is the film
+    // starting ITSELF after three seconds of hover, which genuinely is
+    // motion nobody asked for. See hoverIn.
+
+    // How far the media may be pushed down: the hero's LARGE height,
+    // read once from the stylesheet so the number lives in one place.
+    const large =
+      parseFloat(getComputedStyle(el).getPropertyValue("--hero-large")) || 600;
 
     let frame = 0;
     const apply = () => {
@@ -101,9 +125,11 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
       const y = window.scrollY;
       const grow = 1 - Math.min(1, Math.max(0, y / SHRINK_OVER));
       docEl.style.setProperty("--grow", grow.toFixed(3));
-      // Only while the hero is still on screen; past that it is clipped
-      // away and there is nothing to hold still.
-      el.style.setProperty("--pan", `${Math.min(y, el.offsetHeight)}px`);
+      // Clamped at the LARGE height rather than the current one. It read
+      // el.offsetHeight, which IS the shrunk height once you have
+      // scrolled — so the hold quietly gave up 300px early and the
+      // picture began travelling again while it was still on screen.
+      el.style.setProperty("--pan", `${Math.min(y, large)}px`);
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(apply);
@@ -140,6 +166,10 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
   };
   const hoverIn = () => {
     if (!video) return;
+    // THIS is what the reduced-motion preference properly governs: a film
+    // that starts ITSELF because a cursor came to rest. A click still
+    // starts it, because a click is somebody asking.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(start, 3000);
   };

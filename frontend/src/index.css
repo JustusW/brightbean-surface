@@ -160,7 +160,7 @@ a { color: var(--sky-deep); }
      Bounded rather than scaled by height: the source is 4.75:1, and
      `height: 100%` on a phone would build a four-thousand-pixel layer to
      show eight hundred of it. */
-  width: calc(100% + 240px);
+  width: calc(100% + 560px);
   height: 100%;
   max-width: none;
   object-fit: cover;
