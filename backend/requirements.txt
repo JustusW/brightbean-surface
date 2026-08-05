@@ -48,6 +48,20 @@ argon2-cffi==23.1.0
 httpx==0.28.1
 authlib==1.4.0
 
-# Session cookies that carry a signature, so a cookie cannot be edited
-# into somebody else's session.
-itsdangerous==2.2.0
+# NO itsdangerous, AND THIS LINE USED TO BE ONE. I listed it before
+# writing the code, for "session cookies that carry a signature, so a
+# cookie cannot be edited into somebody else's session" — and having
+# written the code, that is not a thing this design can suffer from.
+#
+# The cookie carries ONE value: 256 bits from secrets.token_urlsafe,
+# looked up as a primary key in the session table. It is not derived
+# from the member, it encodes nothing, and it is not a claim to be
+# trusted — so there is nothing to forge into. Editing a byte produces
+# a token that matches no row, which is already a refusal. A signature
+# would prove that a string we generated came back to us, which the
+# table lookup proves anyway.
+#
+# Signing would also need a secret that survives restarts: one more
+# thing in .env, one more thing to generate exactly once and never
+# regenerate, and one more way to log every member out by losing it.
+# That is a real cost for no property gained.

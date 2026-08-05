@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import auth
 from . import config as config_module
 from . import db
 
@@ -187,6 +188,19 @@ def healthz_impl() -> JSONResponse:
         return JSONResponse(status_code=503,
                             content={"ok": False, "database": False})
     return JSONResponse(content={"ok": True, **state})
+
+
+# ---------------------------------------------------------------------------
+# Members
+# ---------------------------------------------------------------------------
+#
+# INCLUDED HERE, AFTER THE PUBLIC ENDPOINTS AND BEFORE THE CATCH-ALL, and
+# the position is load-bearing rather than tidy. Starlette matches routes
+# in the order they are added, so a router registered after the SPA
+# fallback below would never be reached: every /api/auth call would be
+# answered with index.html, and the members area would fail by rendering
+# a perfectly good web page.
+app.include_router(auth.router)
 
 
 # ---------------------------------------------------------------------------
