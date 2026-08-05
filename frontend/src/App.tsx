@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 import { marked } from "marked";
 import Gallery from "./Gallery";
-import PhotoGrid from "./PhotoGrid";
+import PhotoGallery from "./PhotoGallery";
 import { api, type FeedItem, type PageContent, type Site } from "./api";
 
 /** THE DATE, PINNED. `toLocaleDateString()` follows whatever locale the
@@ -93,7 +93,7 @@ function Post({ item }: { item: FeedItem }) {
         </div>
       )}
 
-      <PhotoGrid media={item.media} />
+      <PhotoGallery media={item.media} />
 
       <div className="body">
         {/* Captions are plain text and rendered as such — deliberately

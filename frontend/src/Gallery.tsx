@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import PhotoGrid from "./PhotoGrid";
+import PhotoGallery from "./PhotoGallery";
 import { api, type FeedMedia } from "./api";
 
 /** Impressionen — every picture the club has published.
@@ -50,7 +50,7 @@ export default function Gallery({ title }: { title: string }) {
         <p className="empty">Hier erscheinen bald unsere Bilder.</p>
       )}
 
-      {images && images.length > 0 && <PhotoGrid media={images} />}
+      {images && images.length > 0 && <PhotoGallery media={images} />}
     </section>
   );
 }

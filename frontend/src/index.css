@@ -325,79 +325,77 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 }
 .post:hover { box-shadow: var(--shadow-lift); }
 
-/* ---- the pictures ---------------------------------------------------- */
-/* A ROW THAT WRAPS, SHOWING AS MANY AS FIT.
+/* ---- the gallery ----------------------------------------------------- */
+/* A GALLERY ON THE PAGE, not a row that opens one somewhere else.
  *
- * "the display should show as many images side by side as are possible."
- * What was here was a carousel showing exactly ONE at a time, so seeing
- * three photographs cost three clicks and forty cost forty.
+ * "the posts on the mainpage are supposed to be in a gallery. not in a
+ * flat bullshit display that opens a gallery on click."
  *
- * FIXED HEIGHT, NATURAL WIDTH, AND NOTHING CROPPED. Every tile is the
- * same height and takes whatever width its own picture has — the browser
- * derives that from the image, which is the point: Brightbean records 0
- * for the width and height of these assets, so there are no dimensions
- * to lay out from, and any scheme needing them in advance is out.
+ * It went through two wrong shapes before that was said plainly: a
+ * carousel showing exactly ONE picture at a time, and then a flat strip
+ * of thumbnails whose only trick was opening a lightbox. What belongs
+ * here is a gallery with its own arrows, pagination, keyboard and drag,
+ * WHICH ALSO ZOOMS — and that is one component doing one job.
  *
- * Rows therefore come out slightly ragged at the right edge. The usual
- * fix is flex-grow, which stretches the last row and crops to hide the
- * stretch — and cropping an event poster deletes the date and the venue,
- * which this page has already been caught doing once.
+ * SWIPER DOES IT, and it is a single package rather than a slider plus a
+ * lightbox: two libraries for one job is two things to patch, two
+ * stylesheets and two ideas of what a gallery is. It arrives through npm
+ * and Vite bundles it into our own assets, exactly as the fonts are, so
+ * nothing is fetched from anybody else.
  *
- * THE ZOOMING IS NOT OURS. PhotoSwipe does the enlarging, the pinch, the
- * panning and the stepping between pictures WHILE zoomed — see
- * PhotoGrid.tsx. It arrives through npm and is bundled into our own
- * assets, so nothing is fetched from anybody else. */
+ * Everything below is only sizing and dress; the behaviour is Swiper's.
+ * See PhotoGallery.tsx. */
 
-/* HORIZONTAL ONLY. NEVER TALLER.
- *
- * "Horizontal growth only, no vertical growth..." — so this is ONE row
- * that runs off the side and scrolls, not a grid that wraps. Wrapping
- * makes a post with eight photographs three times the height of a post
- * with two, and a page whose length depends on how many pictures
- * somebody attached is a page that cannot be laid out.
- *
- * The height is therefore fixed and the width is whatever the pictures
- * need. As many as fit stand side by side; the rest are one swipe, one
- * wheel-tilt or one arrow key away.
- */
-.pics {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  /* Stops a sideways flick at the end of the row from dragging the whole
-     page back a step — the browser-history gesture, which is not what
-     anybody meant by looking at the next photograph. */
-  overscroll-behavior-x: contain;
-  /* Proximity rather than mandatory: it tidies up where a picture nearly
-     lands on the edge, and never fights somebody scanning across. */
-  scroll-snap-type: x proximity;
-  gap: 8px;
-  padding: 0 8px 8px;
-}
-
-.pic {
-  display: block;
-  flex: 0 0 auto;
-  /* BIG. The row grows sideways — that was the instruction, and it says
-     nothing about making the pictures smaller. This was 220px, which was
-     my own addition and made a club's photographs into thumbnails; the
-     carousel it replaced showed them at 450. Bounded by the viewport so
-     a picture is never taller than the screen looking at it. */
-  height: min(58vh, 460px);
-  scroll-snap-align: start;
-  border-radius: 10px;
-  overflow: hidden;
-  /* The same dark backing the carousel used, so a picture that has not
-     arrived yet is a quiet rectangle rather than a white flash. */
+/* Swiper draws the gallery and does the zooming. This only tells it how
+   big the pictures are and dresses its controls to match the site. */
+.gal {
+  /* A quiet backing, so a picture that has not arrived yet is a dark
+     rectangle rather than a white flash. */
   background: #0e1c27;
-  cursor: zoom-in;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  --swiper-navigation-color: #fff;
+  --swiper-navigation-size: 26px;
+  --swiper-pagination-color: #fff;
+  --swiper-pagination-bullet-inactive-color: #fff;
+  --swiper-pagination-bullet-inactive-opacity: 0.45;
+  --swiper-pagination-bottom: 10px;
 }
-.pic:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
-.pic img { height: 100%; width: auto; display: block; }
-@media (prefers-reduced-motion: reduce) {
-  .pic { transition: none; }
+
+/* THE ONE MEASUREMENT THAT MATTERS. A shared height, natural widths, and
+   slidesPerView: auto — so as many pictures as fit stand side by side,
+   and the same component fills a post card or the whole page without
+   being told which one it is in.
+
+   Bounded by the VIEWPORT as well as in pixels: a picture should never
+   be taller than the screen looking at it. */
+.gal .swiper-slide {
+  width: auto;
+  height: min(58vh, 460px);
 }
+
+/* swiper-zoom-container is Swiper's own hook for the zoom. Its stylesheet
+   sizes the image to fit a full-width slide, which is the opposite of
+   what an auto-width slide needs — hence max-width: none. */
+.gal .swiper-zoom-container { width: auto; height: 100%; }
+.gal .swiper-zoom-container > img {
+  width: auto;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  display: block;
+}
+
+/* The arrows sit ON the pictures, so they have to be legible over
+   anything without shouting over it. */
+.gal .swiper-button-prev,
+.gal .swiper-button-next {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(12, 24, 33, 0.55);
+  backdrop-filter: blur(6px);
+}
+.gal .swiper-button-prev::after,
+.gal .swiper-button-next::after { font-weight: 700; }
 
 .post .body { padding: 22px 24px 22px; }
 /* The head sits ABOVE the pictures: a headline exists to be read before
@@ -455,8 +453,9 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
  * posters standing up as tall portrait slabs, which is the vertical
  * format the reference site was criticised for.
  *
- * So Impressionen renders <PhotoGrid>, exactly as a post does, and the
- * only difference is the measure it is given.
+ * So Impressionen renders <PhotoGallery>, exactly as a post does, and
+ * the only difference is the measure it is given — which is why more
+ * pictures stand side by side here without anything being told to.
  */
 
 main.wide { max-width: 1600px; }
@@ -474,14 +473,14 @@ main.wide { max-width: 1600px; }
    viewer: this page gets 1600px of measure and the pictures take most of
    the screen's height rather than most of a card's. That is the whole of
    the difference between the two places. */
-.gallery .pics { padding: 0; gap: 10px; }
-.gallery .pic { height: min(72vh, 720px); }
+.gallery .gal { border-radius: 14px; overflow: hidden; }
+.gallery .gal .swiper-slide { height: min(72vh, 720px); }
 
 /* NO .lightbox OF OUR OWN ANY MORE. There was a hand-written overlay
    here — one <img> in a fixed box, with no pan, no pinch and no way to
-   reach the next picture without closing it first. PhotoSwipe replaced
-   it and brings its own stylesheet, so keeping ours would be two
-   viewers' worth of CSS with one viewer left to use it. */
+   reach the next picture without closing it first. The gallery does its
+   own zooming now, in place, so there is nothing left for an overlay to
+   be for. */
 
 /* NO PHONE OVERRIDE, DELIBERATELY. There was one, and it shrank the
    pictures to 150px — which was never asked for and turned a club's
