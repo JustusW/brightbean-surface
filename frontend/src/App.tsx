@@ -93,7 +93,9 @@ function Post({ item }: { item: FeedItem }) {
         </div>
       )}
 
-      <PhotoGallery media={item.media} />
+      {/* ONE picture at a time here. A post is about its own photograph,
+          and three abreast in a 704px card makes all three small. */}
+      <PhotoGallery media={item.media} perView={1} />
 
       <div className="body">
         {/* Captions are plain text and rendered as such — deliberately

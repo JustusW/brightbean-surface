@@ -413,6 +413,18 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   border-radius: 8px;
 }
 
+/* ONE PICTURE, FILLING THE FRAME. On a post the slide is the whole card
+   width and the picture is contained inside it — so it fills the height
+   exactly if it is portrait, or the width exactly if it is landscape.
+   Either way it fills one dimension and nothing is cropped. */
+.gal.one .swiper-slide { width: 100%; }
+.gal.one .swiper-slide img {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
 /* ---- the full-screen view -------------------------------------------- */
 /* THE ZOOMED-IN NAVIGABLE LAYER. The inline gallery cannot be this: its
    zoom happens inside a slide, and a slide on a post card is 307px wide,
@@ -548,7 +560,16 @@ main.wide { max-width: 1600px; }
    viewer: this page gets 1600px of measure and the pictures take most of
    the screen's height rather than most of a card's. That is the whole of
    the difference between the two places. */
-.gallery .gal { border-radius: 14px; overflow: hidden; }
+/* FULL PAGE WIDTH, AND THAT MEANS THE WINDOW. It was capped at the
+   1600px measure, which on a wide screen left the gallery floating in
+   the middle with dead space beside it. This breaks it out of the
+   centred column to the full viewport: 100vw, pulled back by however far
+   the column is inset. */
+.gallery .gal {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  border-radius: 0;
+}
 .gallery .gal .swiper-slide { height: min(72vh, 720px); }
 
 /* NO .lightbox OF OUR OWN ANY MORE. There was a hand-written overlay

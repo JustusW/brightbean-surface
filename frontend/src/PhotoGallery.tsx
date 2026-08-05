@@ -52,7 +52,21 @@ const A11Y = {
   slideLabelMessage: "Bild {{index}} von {{slidesLength}}",
 };
 
-export default function PhotoGallery({ media }: { media: FeedMedia[] }) {
+export default function PhotoGallery({
+  media,
+  /** HOW MANY PICTURES STAND SIDE BY SIDE.
+   *
+   *  1 on the front page: one picture, filling the frame in at least one
+   *  dimension, because a post is about ITS photograph and three abreast
+   *  in a 704px card makes all of them small.
+   *
+   *  "auto" on Impressionen, where there is a whole screen to spend and
+   *  the point is seeing as many as fit at once. */
+  perView = "auto",
+}: {
+  media: FeedMedia[];
+  perView?: 1 | "auto";
+}) {
   // Which picture the backdrop shows. An index rather than the object, so
   // it survives the feed reloading with different media.
   const [active, setActive] = useState(0);
@@ -84,7 +98,7 @@ export default function PhotoGallery({ media }: { media: FeedMedia[] }) {
   return (
     <>
       <Swiper
-        className="gal"
+        className={perView === 1 ? "gal one" : "gal"}
         modules={[
           Navigation,
           Pagination,
@@ -108,13 +122,16 @@ export default function PhotoGallery({ media }: { media: FeedMedia[] }) {
         /* Natural width per slide at a shared height, so as many as fit
            are shown. It is what lets one component serve both places: the
            page decides the room and the gallery fills it. */
-        slidesPerView="auto"
+        slidesPerView={perView}
         spaceBetween={8}
         /* Exists for slidesPerView 'auto': stops a partial slide sitting
            misaligned at the end of the row. */
         snapToSlideEdge
+        /* ONE PICTURE PER STEP. slidesPerGroupAuto was here and it is what
+           made the arrows jump end to end: it skips every slide already
+           in view, so with three slides all visible one click went to the
+           last. The arrows now move picture by picture. */
         slidesPerGroup={1}
-        slidesPerGroupAuto
         grabCursor
         navigation={many}
         pagination={
