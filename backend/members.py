@@ -31,6 +31,7 @@ import sys
 from sqlalchemy import select
 
 from app.models import Identity, Member
+from app.models import Session as SessionRow
 from app.store import engine
 
 
@@ -58,6 +59,33 @@ def show(session) -> int:
               f"{'YES' if m.is_admin else '-':5s} "
               f"{how or '?':16s} "
               f"{m.created_at.date().isoformat():10s} {m.email}")
+    return 0
+
+
+def sessions(session) -> int:
+    """Every signed-in browser, and when it was signed in.
+
+    HERE TO ANSWER ONE QUESTION WITH EVIDENCE: does restarting the site
+    log people out? It does not, and this is how to see that rather than
+    be told it — a session is a ROW, and a row does not care that the
+    container it was created by has been replaced four times since.
+
+    What DOES end a session: it expiring, somebody signing out (the row
+    is deleted), or the account being deactivated (current_member
+    refuses it on the next request).
+    """
+    rows = session.scalars(
+        select(SessionRow).order_by(SessionRow.created_at)).all()
+    if not rows:
+        print("no sessions — nobody is signed in")
+        return 0
+    print(f"{len(rows)} session(s), oldest first\n")
+    print(f"  {'created':20s} {'expires':20s} email")
+    for s in rows:
+        member = session.get(Member, s.member_id)
+        print(f"  {s.created_at.isoformat(timespec='seconds'):20s} "
+              f"{s.expires_at.isoformat(timespec='seconds'):20s} "
+              f"{member.email if member else '(deleted member)'}")
     return 0
 
 
@@ -100,6 +128,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="what", required=True)
     sub.add_parser("list")
+    sub.add_parser("sessions")
     for name in ("approve", "revoke", "block", "unblock",
                  "admin", "unadmin"):
         one = sub.add_parser(name)
@@ -110,6 +139,8 @@ def main() -> int:
     with Session(engine()) as session:
         if args.what == "list":
             return show(session)
+        if args.what == "sessions":
+            return sessions(session)
         if args.what == "approve":
             return set_flag(session, args.email, approved=True)
         if args.what == "revoke":
