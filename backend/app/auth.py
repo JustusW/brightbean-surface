@@ -601,9 +601,10 @@ def decide(payload: dict = Body(default={}),
     """
     email = (payload.get("email", "") or "").strip().lower()
     verb = (payload.get("what", "") or "").strip().lower()
-    if verb not in ("approve", "revoke"):
-        raise HTTPException(status_code=400,
-                            detail="what muss approve oder revoke sein.")
+    if verb not in ("approve", "revoke", "delete"):
+        raise HTTPException(
+            status_code=400,
+            detail="what muss approve, revoke oder delete sein.")
 
     member = db.scalar(select(Member).where(Member.email == email))
     if member is None:
@@ -616,10 +617,27 @@ def decide(payload: dict = Body(default={}),
     # — which is exactly the situation the website version exists to
     # avoid. Somebody else's admin can still be taken away, on the
     # server, with members.py.
-    if member.id == admin.id and verb == "revoke":
+    if member.id == admin.id and verb in ("revoke", "delete"):
         raise HTTPException(
             status_code=409,
-            detail="Du kannst Dich nicht selbst sperren.")
+            detail="Du kannst Dein eigenes Konto hier nicht sperren oder "
+                   "löschen.")
+
+    if verb == "delete":
+        # DELETING IS REAL, AND IT IS SUPPOSED TO BE. I had written that
+        # "refusing is not deleting" and left no way to remove an account
+        # at all — which is not caution, it is a gap: Art. 17 DSGVO gives
+        # a person the right to have their data erased, and a club that
+        # cannot honour that has a problem no amount of carefulness
+        # fixes. The shepherd: "an admin CAN delete an account."
+        #
+        # The Member goes and takes its identities and sessions with it —
+        # models.py declares cascade="all, delete-orphan" on both — so a
+        # deleted person leaves nothing behind pointing at them, which is
+        # the whole point of erasure.
+        db.delete(member)
+        db.commit()
+        return JSONResponse({"email": email, "deleted": True})
 
     member.is_approved = verb == "approve"
     db.commit()

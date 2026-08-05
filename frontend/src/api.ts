@@ -170,8 +170,8 @@ export const api = {
   // no business learning that this exists.
   registrations: () =>
     get<{ members: Registration[] }>("/api/auth/registrations"),
-  decide: (email: string, what: "approve" | "revoke") =>
-    post<{ email: string; approved: boolean }>(
+  decide: (email: string, what: "approve" | "revoke" | "delete") =>
+    post<{ email: string; approved?: boolean; deleted?: boolean }>(
       "/api/auth/registrations/decide",
       { email, what },
     ),

@@ -19,6 +19,11 @@ function Board({ me }: { me: MemberAccount }) {
   const [rows, setRows] = useState<Registration[] | null>(null);
   const [failed, setFailed] = useState("");
   const [busy, setBusy] = useState("");
+  /** Which row has asked "really?". Deleting cannot be undone, so it
+   *  takes two deliberate clicks — and the second one is labelled with
+   *  what it will do rather than "OK", so a stray return key on a
+   *  browser dialog cannot do it either. */
+  const [confirming, setConfirming] = useState("");
 
   const load = () =>
     api
@@ -36,11 +41,15 @@ function Board({ me }: { me: MemberAccount }) {
     load();
   }, []);
 
-  const decide = async (email: string, what: "approve" | "revoke") => {
+  const decide = async (
+    email: string,
+    what: "approve" | "revoke" | "delete",
+  ) => {
     setBusy(email);
     setFailed("");
     try {
       await api.decide(email, what);
+      setConfirming("");
       await load();
     } catch (e) {
       setFailed(
@@ -113,22 +122,55 @@ function Board({ me }: { me: MemberAccount }) {
                 refuses it too; this only avoids offering it. */}
             {r.email === me.email ? (
               <span className="selbst">Du</span>
-            ) : r.approved ? (
-              <button
-                className="regrevoke"
-                disabled={busy === r.email}
-                onClick={() => decide(r.email, "revoke")}
-              >
-                Zugang entziehen
-              </button>
+            ) : confirming === r.email ? (
+              /* THE SECOND CLICK SAYS WHAT IT DOES. Not "OK" in a
+                 browser dialog, which a stray return key answers. */
+              <>
+                <button
+                  className="regdelete"
+                  disabled={busy === r.email}
+                  onClick={() => decide(r.email, "delete")}
+                >
+                  Endgültig löschen
+                </button>
+                <button
+                  className="regcancel"
+                  onClick={() => setConfirming("")}
+                >
+                  Abbrechen
+                </button>
+              </>
             ) : (
-              <button
-                className="regok"
-                disabled={busy === r.email}
-                onClick={() => decide(r.email, "approve")}
-              >
-                Freischalten
-              </button>
+              <>
+                {r.approved ? (
+                  <button
+                    className="regrevoke"
+                    disabled={busy === r.email}
+                    onClick={() => decide(r.email, "revoke")}
+                  >
+                    Zugang entziehen
+                  </button>
+                ) : (
+                  <button
+                    className="regok"
+                    disabled={busy === r.email}
+                    onClick={() => decide(r.email, "approve")}
+                  >
+                    Freischalten
+                  </button>
+                )}
+                {/* DELETE IS ALWAYS OFFERED, approved or not — Art. 17
+                    DSGVO is a right the person has whether or not the
+                    club ever let them in. */}
+                <button
+                  className="regask"
+                  disabled={busy === r.email}
+                  onClick={() => setConfirming(r.email)}
+                  aria-label={`Konto ${r.email} löschen`}
+                >
+                  Löschen
+                </button>
+              </>
             )}
           </li>
         ))}

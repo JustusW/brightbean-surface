@@ -1274,3 +1274,25 @@ main > .empty { margin-top: 40px; }
 @media (max-width: 780px) {
   .board { padding: 22px 18px 24px; border-radius: 14px; }
 }
+
+/* Deleting an account. QUIET UNTIL ASKED FOR, then unmistakable.
+   The first button only opens the question; the second is the one that
+   does it, and it is the only red thing on the page. */
+.regs .regask {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+.regs .regask:hover:not(:disabled) {
+  border-color: #c0392b;
+  color: #7d241a;
+}
+
+.regs .regdelete {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: #fff;
+}
+.regs .regdelete:hover:not(:disabled) { background: #a93226; }
+
+.regs .regcancel { background: var(--wash); color: var(--ink-soft); }
