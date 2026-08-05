@@ -69,9 +69,14 @@ unbuilt, and said the backdrop was not wired in.
 | The hero was held against scrolling by a per-frame `--pan` translate | `position: fixed`. The word was always a CSS keyword and was read as a metaphor for five attempts. `--pan` is deleted, not tuned. |
 | Coverflow, with a 3D transform | Removed on instruction — "the transformation flickers". It also took a whole class of defect with it: the transform moved a slide's **hit box** away from where it was drawn, which is what stopped pictures two and three opening. |
 | `field-backdrop.jpg` referenced by nothing | `Backdrop.tsx`, mounted once for the whole site, panning 560px on scroll, gaussian baked at 2. |
-| `Members.tsx` not built | Built. Sign-up, sign-in and Google, inclusive rather than alternative. **Its backend routes do not exist yet** — see below. |
+| `Members.tsx` not built | Built, **and its backend exists**: `/api/auth/*`, password and Google inclusively, with admins, a registrations board and account deletion. Live, and signed into with a real Google account. |
 | No map anywhere | `Anfahrt.tsx`: Leaflet through npm, lazy-loaded, plus the club's own Anfahrtsskizze vendored. |
 | The old WordPress not touched | Scraped, judged and imported. 20 feed items and 45 gallery pictures live. |
+| The OAuth flow hand-rolled *around* authlib | Deleted rather than repaired, on instruction, and rebuilt on `authorize_redirect` / `authorize_access_token` with nothing of ours between them. Written against `notes/authlib-client-api.txt` — 79 kB of the library's own documentation, read first. PKCE is on. |
+| Dependencies pinned exactly, at versions 18 months old | `>=` floors read off PyPI. An exact pin on a public endpoint is a decision to keep running known-vulnerable code until somebody remembers to edit a file, and nobody was going to. |
+| Three Alembic revisions existing only on the server | Brought home and verified as one chain by reading `down_revision`: `a5801cef0ec3` → `dbc9ad33aa51` → `1586cb2b805f`. Still generated, never handwritten. |
+| A `Rechtliches` page of AGB boilerplate | Gone — "the AGB are out, they simply are meaningless for our usecase. the DSE is all we really need". The Impressum and the Datenschutzerklärung, which *are* required, stay. |
+| Nothing tested end to end | `notes/e2e_stack.py`: a throwaway PostgreSQL from `initdb`, the real app, the real migrations, a real browser. 9 assertions, ~45 s, nothing left behind. **Members flow only.** |
 
 ---
 
@@ -118,7 +123,7 @@ brightbean-surface/frontend/
 | `src/Hero.tsx` | **The** hero. `position: fixed` inside a constant-height `.heroslot`, so the document's height cannot depend on it and the scroll-clamp feedback loop is gone by construction. Writes one number, `--grow`. Hangs at `top: var(--header-h)` because a sticky header paints over a lower-z-index fixed element. |
 | `src/PhotoGallery.tsx` | **The** gallery, two layers, one package. Inline on the page with arrows, pagination, keyboard and drag over a blurred copy of the current picture; full-screen for the zoom, because Swiper zooms *inside* a slide and a slide on a post card is 432px. |
 | `src/Anfahrt.tsx` | The OSM map. Leaflet via npm, **never a CDN**, lazy-loaded via `React.lazy` so 150 kB stays out of the main bundle. Its marker icons are imported as modules — `L.Icon.Default` computes them from its stylesheet's location at runtime, which a bundler breaks. |
-| `src/Members.tsx` | Sign up, sign in, Google, and the welcome page. Holds no token: the session is a row in our own database and the cookie carries only its id. |
+| `src/Members.tsx` | Sign up, sign in, Google, the welcome page, and — for an admin only — the registrations board: approve, revoke, and a two-stage delete whose second button says what it does. Holds no token: the session is a row in our own database and the cookie carries only its id. Rendering the board is a convenience, not a control; every admin endpoint checks the column again server-side, because a flag the browser holds is a flag the browser can edit. |
 | `src/api.ts` | Every backend call and the shape of every answer, in one file, so a contract change breaks compilation instead of a page. |
 | `src/autoreload.ts` | `#autoreload` only, inert without it. Compares the hashed bundle filename the page is running against the one the server is serving. |
 | `src/index.css` | All styling, with the reasoning beside anything non-obvious. `--grow`, `--chrome`, `--header-h`, the hero's heights, the gallery's sizing, the prose measure the Datenschutzerklärung needs. |
@@ -139,15 +144,57 @@ hypotheses, each of which cost a deploy.
 failed requests. A broken image is neither a type error nor a build
 error, so nothing else catches it.
 
+`notes/e2e_stack.py` stands the whole thing up from nothing: `initdb` a
+throwaway PostgreSQL cluster on a free port, run the real Alembic
+migrations against it, serve the real application, drive it with a real
+browser through `notes/e2e_members.py`, and tear all of it down. 45.6 s,
+9 passed, 0 failed, nothing left behind.
+
+**It uses the PostgreSQL already installed on the machine, and there is
+no container anywhere in it.** An earlier version was a Docker compose
+and nearly got built on the shepherd's own PC unasked; it was deleted
+entirely.
+
+Three rules came out of that harness the hard way, and they are written
+into it beside the code they govern:
+
+- **Run it piecewise.** Nine steps executed at once cannot tell you
+  which one hung, and four separate Windows defects fell out in minutes
+  once each layer was probed on its own.
+- **Probes are seconds, not minutes.** A long blocking call you are
+  attached to is time spent blind while somebody waits.
+- **Point the test at something that should FAIL.** Running
+  `e2e_members.py` against the old WordPress site is what exposed a
+  false pass: Playwright matches accessible names by *substring*, so
+  "Mitglieder" matched WordPress's "Mitgliederbereich" and
+  `"/mitglieder" in url` matched `/mitgliederbereich/`. Fixed with
+  `exact=True` and a parsed path comparison. A test that has only ever
+  passed is a claim, not evidence.
+
+**An end-to-end test must never write to production.** It did, three
+times, and the board's own registrations list showed the leaked accounts
+to the shepherd before anybody else noticed. `e2e_members.py` now
+refuses the live site unless `E2E_WRITE_LIVE=yes` is set deliberately,
+and `members.py purge` removes `@example.invalid` accounts and nothing
+else.
+
 ## Not done
 
-- **`/api/auth/*` does not exist.** `Members.tsx` calls it and the
-  members area is therefore unreachable. The models and the migrations
-  are there; the routes are not.
-- **Two Alembic revisions exist only on the server**, at
-  `/srv/surface/src/backend/migrations/versions/`. A machine rebuilt
-  from GitHub generates different ones.
+- **The surface can send no email at all**, and that blocks two separate
+  things. `email_verified` is never set for a password signup, so
+  somebody can register an address they do not own — mitigated only by
+  the board approving every account by hand. And there is no password
+  reset: a member who forgets is stuck, and `members.py` cannot set one
+  either. The server has msmtp for system mail; this container has
+  nothing.
+- **No rate limiting on `/api/auth/login`.** argon2 makes each attempt
+  expensive, which is the point against a guesser and also a cheap way
+  for one to burn the server's CPU.
+- **There is nothing behind the door.** An approved member signs in and
+  reads a welcome message. Nobody has yet said what the internal area
+  should actually hold.
 - **`/api/gallery` reports width 0 height 0**, because Brightbean never
   populated those columns. Nothing in the layout may depend on knowing a
   picture's size in advance, and nothing does.
-- **No Rule 8 end-to-end test** covers any of this.
+- **The end-to-end stack covers the members flow only.** Nothing covers
+  the feed, the gallery, the Anfahrt map or the WordPress import.
