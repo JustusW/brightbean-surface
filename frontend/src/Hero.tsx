@@ -2,34 +2,40 @@ import { useEffect, useRef } from "react";
 
 /** THE hero. One implementation, every page that has one.
  *
- *  There were two — the front page's video banner and a separate one
- *  written for Impressionen — and they had already drifted into different
- *  sizes, different behaviour and different markup. "why the fuck are
- *  those two separate implementations?" There is no answer to that; a
- *  hero is a hero.
+ *  IT IS PINNED TO THE TOP OF THE WINDOW AND STAYS THERE. The shepherd,
+ *  after three attempts that all scrolled away: "it's supposed to shrink
+ *  to 300 in height and then REMAIN WHERE IT IS."
  *
- *  WHAT IT DOES, identically wherever it is used:
+ *  So it is `position: fixed`, and a slot of the FULL height holds its
+ *  place in the document. That single change fixes three things at once:
  *
- *    Full window width, whatever measure the page is set in.
- *    TWICE AS HIGH at the top, settling to its normal size as you scroll.
- *    FIXED AGAINST SCROLLING — the picture stays put and the page travels
- *    over it.
- *    The page's heading sits IN it, slightly transparent with the shadow
- *    on the glyphs.
+ *    IT REMAINS. Six hundred pixels at the top of the page, shrinking to
+ *    three hundred as you scroll, and then it simply stays — the page
+ *    travels underneath it.
+ *
+ *    THE JITTER GOES. It used to shrink IN THE FLOW, so everything below
+ *    it rose by 300px OVER AND ABOVE the distance scrolled — content
+ *    moving at 1.7x the speed of the wheel, which is exactly what
+ *    "severe motion jitter" describes. Out of flow, nothing below it
+ *    moves at all except by scrolling.
+ *
+ *    THE DOCUMENT'S HEIGHT IS CONSTANT BY CONSTRUCTION. The slot is a
+ *    plain 600px box that never changes, so there is no longer any way
+ *    for the hero's size to feed back into how far the page can scroll.
+ *    The body-padding compensation that used to do that job by
+ *    arithmetic is gone, and so is the class of bug it was patching.
+ *
+ *    AND THERE IS NOTHING LEFT TO HOLD AGAINST THE SCROLL. --pan is gone
+ *    with it: a fixed element does not move, so the picture inside it
+ *    does not either. That was thirty lines and a translate per frame,
+ *    emulating what `position: fixed` does for nothing.
  *
  *  THE MEDIA CAN BE EITHER, and that is the only thing that varies: the
- *  club's own film on the front page, a photograph on Impressionen.
- *
- *  IT IS RENDERED OUTSIDE <main>, ALWAYS. That is not a detail of taste:
- *  the previous version reached full width with `width: 100vw` and a
- *  negative margin, and 100vw INCLUDES the vertical scrollbar — so the
- *  hero was some fifteen pixels wider than the page and put a horizontal
- *  scrollbar on the whole site. Worse, `calc(50% - 50vw)` resolves
- *  against whatever box it happens to sit in, so nested inside the
- *  Impressionen column it behaved differently from the front page's,
- *  which is how the same component came to look like two. A top-level
- *  element is full width for nothing, on both pages, with no arithmetic
- *  to get wrong.
+ *  club's own film on the front page, a photograph on Impressionen. It
+ *  is held at the full 600 and anchored to the TOP, so as the hero
+ *  shrinks it is the BOTTOM of the picture that is clipped away — which
+ *  is the whole point of the Impressionen crop, where the faces are near
+ *  the top and it is the grass that can go.
  */
 
 /** How far you scroll before it has finished shrinking. Long enough to be
@@ -46,90 +52,44 @@ interface HeroProps {
 }
 
 export default function Hero({ title, image, video, poster }: HeroProps) {
-  const root = useRef<HTMLElement>(null);
   const film = useRef<HTMLVideoElement>(null);
   const timer = useRef<number | undefined>(undefined);
 
-  /** SHRINK, AND STAY PUT.
+  /** ONE NUMBER, WRITTEN ON THE DOCUMENT.
    *
-   *  Two numbers, both written as custom properties so the stylesheet
-   *  keeps the arithmetic:
-   *
-   *    --grow  1 at the top of the page, 0 once you have scrolled past.
-   *            The height is interpolated from it, and because the large
-   *            height is stated as exactly twice the small one, "twice as
-   *            high at the top" is a property of the stylesheet rather
-   *            than of a number somebody typed here.
-   *    --pan   how far to push the media DOWN. The hero's top edge is
-   *            travelling up by exactly scrollY, so pushing the media
-   *            down by the same amount leaves it standing still in the
-   *            window — which is what "fixed against scrolling" means,
-   *            and unlike background-attachment: fixed it also works on
-   *            iOS and works for a <video>.
+   *  --grow is 1 at the top of the page and 0 once you have scrolled
+   *  past SHRINK_OVER. The stylesheet turns it into a height; nothing
+   *  here knows what 600 or 300 are, which is why they can be argued
+   *  about in one place.
    *
    *  Written inside requestAnimationFrame: scroll fires far more often
-   *  than the screen redraws, and setting styles on every event is how a
-   *  page starts to feel heavy on a phone.
+   *  than the screen redraws, and setting a style on every event is how
+   *  a page starts to feel heavy on a phone.
    *
-   *  Reduced motion gets the small hero, standing still, no movement. */
+   *  NO prefers-reduced-motion BRANCH, AND THAT WAS THE BUG THAT COST
+   *  DAYS. There was one, and it pinned --grow to 0 and returned — so on
+   *  any machine asking for reduced motion, which Windows does whenever
+   *  "Show animations in Windows" is off, the hero sat at its SMALL
+   *  height for ever and never reached its full one. Measured with
+   *  Playwright's reduced_motion="reduce": 300 at rest, 300 scrolled,
+   *  ratio 1.00, against 600/300/2.00 in an ordinary browser on the same
+   *  build. Every earlier round of "the size is STILL not what I told
+   *  you" was that branch, and I kept measuring in the one browser that
+   *  could not see it.
+   *
+   *  The shrink is a direct response to the reader's own scrolling —
+   *  nothing moves unless they move it. What stays behind the preference
+   *  is the film starting ITSELF on hover, which is motion nobody asked
+   *  for. See hoverIn. */
   useEffect(() => {
-    const el = root.current;
-    if (!el) return;
-
-    // --grow GOES ON THE DOCUMENT, not on the hero, because two things
-    // need it and one of them is <body>. See the padding-bottom rule in
-    // index.css: as the hero shrinks, the body grows the same amount of
-    // bottom padding, so the DOCUMENT'S HEIGHT NEVER CHANGES.
-    //
-    // Without that, this is a feedback loop. The hero shrinks, the page
-    // gets shorter, the browser clamps the scroll position because there
-    // is no longer that much page to scroll, the clamp fires another
-    // scroll event, and the hero grows again. On a short page — like
-    // Impressionen, which is a hero and one row of pictures — it settles
-    // into a rubber band and the page reads as "basically unscrollable".
     const docEl = document.documentElement;
-
-    // NO prefers-reduced-motion BRANCH HERE ANY MORE, AND IT IS THE BUG
-    // THAT HAS BEEN WASTING EVERYBODY'S TIME.
-    //
-    // There was one, and it pinned --grow to 0 and --pan to 0px and
-    // returned. On a machine that asks for reduced motion — which
-    // Windows does whenever "Show animations in Windows" is off — the
-    // hero therefore sat at its SMALL height for ever, never reached its
-    // full height, and did not hold against the scroll. Word for word
-    // what was reported from the live page: "the hero is 300px
-    // permanently, still isn't sticking around when scrolling and it
-    // never actually reaches the 600px it's supposed to shrink FROM".
-    //
-    // MEASURED, with Playwright's reduced_motion="reduce": 300 at rest,
-    // 300 after scrolling, ratio 1.00, media moved the full 600 — beside
-    // an ordinary browser on the same build reading 600, 300, 2.00 and
-    // held. Every earlier round of "the size is STILL not what I fucking
-    // told you" was this branch, and I kept measuring in the one browser
-    // that could not see it.
-    //
-    // The shrink is a DIRECT RESPONSE TO THE READER'S OWN SCROLLING —
-    // nothing moves unless they move it — and it is the thing the site
-    // was asked for. What stays behind the preference is the film
-    // starting ITSELF after three seconds of hover, which genuinely is
-    // motion nobody asked for. See hoverIn.
-
-    // How far the media may be pushed down: the hero's LARGE height,
-    // read once from the stylesheet so the number lives in one place.
-    const large =
-      parseFloat(getComputedStyle(el).getPropertyValue("--hero-large")) || 600;
 
     let frame = 0;
     const apply = () => {
       frame = 0;
-      const y = window.scrollY;
-      const grow = 1 - Math.min(1, Math.max(0, y / SHRINK_OVER));
+      const grow =
+        1 - Math.min(1, Math.max(0, window.scrollY / SHRINK_OVER));
       docEl.style.setProperty("--grow", grow.toFixed(3));
-      // Clamped at the LARGE height rather than the current one. It read
-      // el.offsetHeight, which IS the shrunk height once you have
-      // scrolled — so the hold quietly gave up 300px early and the
-      // picture began travelling again while it was still on screen.
-      el.style.setProperty("--pan", `${Math.min(y, large)}px`);
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(apply);
@@ -140,10 +100,9 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (frame) cancelAnimationFrame(frame);
-      // Back to 1 — "nothing has shrunk" — because --grow now lives on
-      // the document and would otherwise outlive this hero onto a page
-      // that has none, leaving the body padded for a compensation that
-      // is not happening.
+      // Back to 1 — "nothing has shrunk" — because --grow lives on the
+      // document and would otherwise outlive this hero onto a page that
+      // has none.
       docEl.style.setProperty("--grow", "1");
     };
   }, []);
@@ -177,47 +136,54 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   return (
-    <section
-      className="hero"
-      ref={root}
-      onClick={video ? start : undefined}
-      onMouseEnter={hoverIn}
-      onMouseLeave={hoverOut}
-    >
-      {video ? (
-        <video
-          ref={film}
-          className="heromedia"
-          src={video}
-          poster={poster}
-          /* preload="auto" on a 15.7 MB file means the network never goes
-             idle on this page. That is deliberate — the film should be
-             ready when somebody clicks — but it is also why any Playwright
-             probe here must wait for "load" and never "networkidle". */
-          preload="auto"
-          muted
-          loop
-          /* playsInline stops iOS taking the video fullscreen the instant
-             it plays, which would throw the visitor out of the page. */
-          playsInline
-          /* It is scenery. Announcing it, or letting the tab key land on
-             it, offers a control that does nothing anybody needs. */
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-      ) : (
-        <div
-          className="heromedia"
-          aria-hidden="true"
-          style={{ backgroundImage: `url(${image})` }}
-        />
-      )}
+    /* THE SLOT holds the hero's place in the document, at the full height,
+       for ever. It is what everything below the hero is positioned
+       against, and it never changes size — which is why the page's
+       scrollable length no longer depends on the hero at all. */
+    <div className="heroslot">
+      <section
+        className="hero"
+        onClick={video ? start : undefined}
+        onMouseEnter={hoverIn}
+        onMouseLeave={hoverOut}
+      >
+        {video ? (
+          <video
+            ref={film}
+            className="heromedia"
+            src={video}
+            poster={poster}
+            /* preload="auto" on a 15.7 MB file means the network never
+               goes idle on this page. That is deliberate — the film
+               should be ready when somebody clicks — but it is also why
+               any Playwright probe here must wait for "load" and never
+               "networkidle". */
+            preload="auto"
+            muted
+            loop
+            /* playsInline stops iOS taking the video fullscreen the
+               instant it plays, which would throw the visitor out of the
+               page. */
+            playsInline
+            /* It is scenery. Announcing it, or letting the tab key land
+               on it, offers a control that does nothing anybody needs. */
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+        ) : (
+          <div
+            className="heromedia"
+            aria-hidden="true"
+            style={{ backgroundImage: `url(${image})` }}
+          />
+        )}
 
-      <div className="scrim" aria-hidden="true" />
+        <div className="scrim" aria-hidden="true" />
 
-      <div className="heroinner">
-        <h1>{title}</h1>
-      </div>
-    </section>
+        <div className="heroinner">
+          <h1>{title}</h1>
+        </div>
+      </section>
+    </div>
   );
 }

@@ -92,26 +92,17 @@ body {
   min-height: 100vh;
   /* Deliberately transparent. See above. */
   background: transparent;
-  /* TWO THINGS ADD UP HERE, and the second is the fix for a page that
-     will not scroll.
+  /* THE PAGE MUST NOT END UNDERNEATH THE DOCK, which is pinned and
+     always exactly this tall.
 
-     46px so THE PAGE DOES NOT END UNDERNEATH THE DOCK, which is pinned
-     and always exactly that tall.
-
-     Plus exactly as much as the hero has given up. The hero shrinks by
-     300px as you scroll; without this the document gets 300px shorter at
-     the same moment, the browser clamps the scroll position because
-     there is no longer that much page, the clamp fires another scroll
-     event, and the hero grows back. On a long page you never notice that
-     argument. On a SHORT one — Impressionen is a hero and one row of
-     pictures — it settles into a rubber band, and the report of it was
-     "basically unscrollable, the images are always cutoff".
-
-     Compensating HERE rather than under the hero puts the reclaimed
-     space at the very foot of the document, behind the dock and out of
-     the way, instead of opening a visible gap in the middle of the
-     page. */
-  padding-bottom: calc(46px + 300px * (1 - var(--grow)));
+     THE ARITHMETIC THAT USED TO BE HERE IS GONE, and good riddance: it
+     added back whatever the hero had given up, to stop the document
+     getting shorter as the hero shrank and the browser clamping the
+     scroll. The hero is `position: fixed` now with a constant-height
+     slot holding its place, so the document's length cannot depend on it
+     at all. The invariant is structural instead of arithmetical, which
+     is the difference between a fix and a patch. */
+  padding-bottom: 46px;
 }
 
 img { max-width: 100%; height: auto; display: block; }
@@ -269,27 +260,61 @@ a { color: var(--sky-deep); }
  * differently on the two pages; at the top level there is nothing left
  * to differ. */
 
-.hero {
-  position: relative;
-  width: 100%;
+/* THE SLOT holds the hero's place in the document, at the FULL height,
+   for ever. It never changes size, so the page's scrollable length
+   cannot depend on the hero — which is what killed the rubber-banding on
+   short pages, structurally rather than by arithmetic.
 
+   Both heights are declared here rather than on .hero because .hero is
+   fixed and this is its DOM parent: custom properties still inherit, so
+   the slot and the banner cannot disagree about how tall 600 is. */
+.heroslot {
   /* SIX HUNDRED AT THE TOP, HALF THAT ONCE YOU HAVE SCROLLED. The
      shepherd's own numbers: "shrink from fullheight (currently 420
      (nice) but should be 600) to half height when scrolling."
 
-     PLAIN PIXELS, NOT A VIEWPORT FRACTION, and that is the lesson rather
-     than a preference. It was min(46vh, 420px), so the number in this
-     file and the number on the screen were different things on every
-     machine — which is most of why this measurement has been argued
-     about four times. 600 now means 600.
-
-     --grow is written on <html> by Hero.tsx rather than here, because
-     <body> reads it too: see the padding-bottom rule above. The pair of
-     them keep the DOCUMENT'S HEIGHT CONSTANT while this shrinks, which
-     is what stops a short page fighting the scroll. */
+     PLAIN PIXELS, NOT A VIEWPORT FRACTION. It was min(46vh, 420px), so
+     the number in this file and the number on the screen were different
+     things on every machine. 600 now means 600. */
   --hero-large: 600px;
   --hero-small: 300px;
-  --pan: 0px;
+  height: var(--hero-large);
+}
+
+/* PINNED, AND IT STAYS. "it's supposed to shrink to 300 in height and
+ * then REMAIN WHERE IT IS."
+ *
+ * AND THE WORD WAS ALWAYS `fixed`. It was used three times — "keep the
+ * hero banner fixed against scrolling", "the header is supposed to be
+ * fixed", and "I specifically did NOT use static. because that would
+ * have been wrong". That is a CSS position value, chosen precisely, and
+ * I read it as a figure of speech and built a parallax to imitate it.
+ *
+ * `position: fixed` does three jobs here, each replacing something that
+ * was being done badly by hand:
+ *
+ *   IT REMAINS, which is the requirement.
+ *
+ *   NOTHING BELOW IT MOVES AS IT SHRINKS. In flow, the content under it
+ *   rose by 300px OVER AND ABOVE the distance scrolled — the page moving
+ *   at 1.7x the wheel, which is what "severe motion jitter" was.
+ *
+ *   THE PICTURE INSIDE IT NO LONGER HAS TO BE HELD. It used to be
+ *   translated down by scrollY every frame to fake standing still, one
+ *   frame behind the scroll — "the jitter is in the repositioning of the
+ *   video/picture as the scrolls land". A fixed element does not move,
+ *   so there is nothing to correct and --pan is gone entirely.
+ *
+ * left/right rather than width: percentages on a fixed element resolve
+ * against the initial containing block, and 100% of that is one more
+ * chance to be a scrollbar too wide. Two edges cannot be. */
+.hero {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Under the header (20) and the dock (30), over the page. */
+  z-index: 10;
   height: calc(
     var(--hero-small) + (var(--hero-large) - var(--hero-small)) * var(--grow)
   );
@@ -307,11 +332,10 @@ a { color: var(--sky-deep); }
 /* THE MEDIA: the club's film on the front page, a photograph on
  * Impressionen, and nothing else differs between them.
  *
- * It is held at the LARGE height and pushed DOWN by --pan, which is
- * exactly how far the hero's own top edge has travelled up — so it
- * stands still in the window while the page scrolls over it. That is
- * what background-attachment: fixed does for a background, except this
- * also works for a <video> and works on iOS, where `fixed` is ignored. */
+ * Held at the LARGE height and ANCHORED TO THE TOP, with no transform of
+ * any kind. As the hero shrinks it is the BOTTOM of the picture that is
+ * clipped away — which is the entire point of the Impressionen crop,
+ * where the faces are near the top and it is the grass that can go. */
 .hero .heromedia {
   position: absolute;
   top: 0;
@@ -324,7 +348,6 @@ a { color: var(--sky-deep); }
   background-position: center top;
   background-repeat: no-repeat;
   background-color: #0a1a26;
-  transform: translateY(var(--pan));
 }
 
 .scrim {
@@ -523,7 +546,12 @@ main > .empty { margin-top: 40px; }
    of pictures, the shape of them, or the page. */
 .gal .swiper-slide {
   width: auto;
-  height: min(72vh, 720px);
+  /* SIZED TO THE WINDOW THAT IS ACTUALLY LEFT. The hero is pinned and
+     never gives back its last 300px, so a picture measured against the
+     whole viewport is guaranteed to have its bottom hidden underneath
+     it — "the images are always cutoff". 340 is that 300 plus a little
+     air. The 720 cap still applies on a tall screen. */
+  height: min(100vh - 340px, 720px);
 }
 
 /* Auto-width slides size themselves from the picture: fix the height and
