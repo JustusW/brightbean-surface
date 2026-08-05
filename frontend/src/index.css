@@ -161,8 +161,40 @@ main { max-width: 760px; margin: 0 auto; padding: 0 20px 48px; }
 .page { padding-top: 32px; }
 .prose h1 { font-size: 30px; line-height: 1.2; margin: 0 0 16px; }
 .prose h2 { font-size: 22px; margin: 32px 0 8px; }
+/* The Datenschutzerklärung nests four levels deep. Without these, h3 and
+   h4 fall back to the browser's defaults and an h3 ends up LARGER than
+   the h2 above it, which makes a long legal document unreadable by
+   destroying the only thing holding its structure together. */
+.prose h3 { font-size: 19px; margin: 26px 0 6px; }
+.prose h4 {
+  font-size: 17px;
+  margin: 18px 0 4px;
+  color: var(--muted);
+  font-weight: 650;
+}
 .prose p, .prose li { font-size: 18px; }
 .prose ul { padding-left: 22px; }
+.prose li { margin-bottom: 8px; }
+/* Long documents need air between paragraphs more than short ones do. */
+.prose p { margin: 0 0 14px; }
+/* Legal text runs to long URLs and long German compounds; neither may
+   push the page sideways on a phone. */
+.prose a { overflow-wrap: anywhere; }
+
+/* THE MANDATORY ALL-CAPS PASSAGES (Art. 21 DSGVO, Widerspruchsrecht)
+   are the reason for the generous line-height and the measure below.
+   They cannot be styled on their own: CSS has no way to select an
+   element by the text inside it, and wrapping them in a class would
+   mean changing a document that is to be used verbatim. So the whole
+   prose block gets the treatment that makes a wall of capitals legible
+   - loose lines and a bounded line length - and nothing is lowercased.
+
+   65 characters is the measure typography has settled on for continuous
+   reading. Without it, a legal document on a wide screen runs the full
+   760px and the eye loses its place returning to the next line, which
+   is exactly the text nobody manages to read anyway. */
+.prose { line-height: 1.7; }
+.prose p, .prose li { max-width: 65ch; }
 
 /* The placeholder notices on Datenschutz and AGB. They are supposed to
    be impossible to skim past - a legal page that quietly admits it is
