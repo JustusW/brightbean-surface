@@ -1,0 +1,280 @@
+"""Everything this application knows how to ask Brightbean's database.
+
+ONE FILE, AND EVERY TABLE AND COLUMN NAMED EXPLICITLY. Reading another
+application's schema directly is a real coupling and pretending otherwise
+would be the mistake — so the coupling is concentrated here, in plain
+SQL, where a Brightbean migration that renames something breaks in one
+obvious place rather than in six subtle ones.
+
+The names below were read out of Brightbean's own models, not guessed:
+
+    composer_post                    apps/composer/models.py, Post
+    composer_platform_post           PlatformPost  (Meta.db_table)
+    composer_post_media              PostMedia
+    media_library_media_asset        apps/media_library/models.py
+    social_accounts_social_account   apps/social_accounts/models.py
+
+Note that none of those is Django's default `<app>_<model>` name. Every
+one of these models sets db_table explicitly, so guessing would have
+produced `composer_platformpost` and a relation-does-not-exist error at
+the first request — which is the lucky outcome. The unlucky one is a name
+that happens to exist and holds something else.
+
+NOTHING HERE WRITES, and that is enforced by PostgreSQL rather than by
+this comment. See connect().
+"""
+
+from __future__ import annotations
+
+import os
+import uuid
+from dataclasses import dataclass, field
+from typing import Any
+
+import psycopg
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
+
+#: THE ONE ENVIRONMENT VARIABLE. It never appears in the config file,
+#: because that file is committed and this is a credential.
+DSN_ENV = "SURFACE_DATABASE_URL"
+
+
+def _configure(conn: psycopg.Connection) -> None:
+    """Make every connection READ ONLY, at the server.
+
+    `conn.read_only = True` issues SET SESSION CHARACTERISTICS AS
+    TRANSACTION READ ONLY, so PostgreSQL itself refuses an INSERT, UPDATE
+    or DELETE on this connection. A bug in this repository then becomes
+    an error rather than a change to somebody's published history.
+
+    The alternative — only ever writing SELECTs and being careful — is
+    not a property anything can rely on six months and three
+    contributors from now. This is a lock; the read-only database user it
+    should be paired with is the other one.
+    """
+    conn.read_only = True
+    conn.autocommit = True
+
+
+_pool: ConnectionPool | None = None
+
+
+def pool() -> ConnectionPool:
+    """The connection pool, opened on first use.
+
+    Small on purpose: this serves a club website, and a pool sized for
+    load that will never arrive is just idle connections against somebody
+    else's managed database.
+    """
+    global _pool
+    if _pool is None:
+        dsn = os.environ.get(DSN_ENV, "")
+        if not dsn:
+            raise RuntimeError(
+                f"{DSN_ENV} is not set, so there is no database to read. "
+                "It is deliberately not in surface.toml — that file is "
+                "committed and this is a credential."
+            )
+        _pool = ConnectionPool(
+            dsn,
+            min_size=1,
+            max_size=4,
+            configure=_configure,
+            open=True,
+            # A public page must fail fast rather than hang: a visitor
+            # would rather see an error than a spinner that never ends.
+            timeout=10.0,
+        )
+    return _pool
+
+
+# ---------------------------------------------------------------------------
+# what a caller gets back
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Media:
+    """One image or video attached to a post.
+
+    `path` is what Brightbean stored: a location relative to its
+    MEDIA_ROOT, like `media_library/2026/08/foo.jpg`. Turning that into a
+    URL is the caller's job, because the origin serving it is a
+    deployment fact rather than a database one.
+    """
+
+    path: str
+    kind: str
+    width: int
+    height: int
+    alt: str
+    thumbnail: str
+
+
+@dataclass
+class Item:
+    """One published post, as the front page shows it."""
+
+    id: str
+    #: The PARENT post's id. Carried because media hangs off the parent
+    #: rather than off the per-platform child - one photograph attached
+    #: to a post that went to four accounts is one row, used four times.
+    post_id: str
+    published_at: Any
+    title: str
+    text: str
+    tags: list[str]
+    platform: str
+    account_name: str
+    account_handle: str
+    #: The post's id ON THE PLATFORM. Kept so a future version can link
+    #: out to the original; empty when the platform gave us nothing back.
+    remote_id: str
+    media: list[Media] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# the queries
+# ---------------------------------------------------------------------------
+
+#: WHY IT MATCHES ON THE PLATFORM POST AND NOT THE PARENT.
+#:
+#: A composer_post aimed at four accounts has four composer_platform_post
+#: children, EACH WITH ITS OWN STATUS. One can be published while another
+#: is still a draft. Brightbean derives an aggregate status on the parent
+#: for its own listings, but that aggregate is computed in Python and does
+#: not exist as a column - so the only honest question the database can
+#: answer is "which platform posts are published", and that is what this
+#: asks.
+_FEED_SQL = """
+SELECT
+    pp.id                        AS platform_post_id,
+    pp.published_at              AS published_at,
+    pp.platform_post_id          AS remote_id,
+    pp.platform_specific_caption AS override_caption,
+    pp.platform_specific_title   AS override_title,
+    p.id                         AS post_id,
+    p.title                      AS title,
+    p.caption                    AS caption,
+    p.tags                       AS tags,
+    sa.platform                  AS platform,
+    sa.account_name              AS account_name,
+    sa.account_handle            AS account_handle
+FROM composer_platform_post pp
+JOIN composer_post p
+  ON p.id = pp.post_id
+JOIN social_accounts_social_account sa
+  ON sa.id = pp.social_account_id
+WHERE pp.status = 'published'
+  AND p.workspace_id = %(workspace)s
+  AND sa.platform = ANY(%(platforms)s)
+  AND (%(accounts)s::uuid[] IS NULL
+       OR cardinality(%(accounts)s::uuid[]) = 0
+       OR sa.id = ANY(%(accounts)s::uuid[]))
+-- NULLS LAST because published_at is nullable: a row published before
+-- that column was populated must not sort to the top of the page as if
+-- it were the newest thing the club has done.
+ORDER BY pp.published_at DESC NULLS LAST, p.created_at DESC
+LIMIT %(limit)s
+"""
+
+#: ONE QUERY FOR EVERY POST'S MEDIA, not one per post. Thirty posts on a
+#: front page would otherwise be thirty-one round trips to a database that
+#: is across a network.
+_MEDIA_SQL = """
+SELECT
+    pm.post_id    AS post_id,
+    pm.position   AS position,
+    pm.alt_text   AS alt_text,
+    ma.file       AS path,
+    ma.media_type AS kind,
+    ma.width      AS width,
+    ma.height     AS height,
+    ma.thumbnail  AS thumbnail
+FROM composer_post_media pm
+JOIN media_library_media_asset ma
+  ON ma.id = pm.media_asset_id
+WHERE pm.post_id = ANY(%(post_ids)s::uuid[])
+ORDER BY pm.post_id, pm.position
+"""
+
+
+def feed(*, workspace: str, platforms: list[str], accounts: list[str],
+         limit: int) -> list[Item]:
+    """Published posts for the front page, newest first."""
+    with pool().connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(_FEED_SQL, {
+            "workspace": uuid.UUID(workspace),
+            "platforms": platforms,
+            "accounts": [uuid.UUID(a) for a in accounts],
+            "limit": limit,
+        })
+        rows = cur.fetchall()
+
+        items: list[Item] = []
+        for row in rows:
+            # THE SAME FALLBACK BRIGHTBEAN'S OWN effective_caption USES:
+            # a per-platform override wins, and NULL means "no override".
+            # An empty string is a deliberate override to nothing, so the
+            # test is `is not None` rather than truthiness - `or` here
+            # would silently show the base caption on a post whose
+            # Instagram text had been intentionally cleared.
+            text = row["caption"]
+            if row["override_caption"] is not None:
+                text = row["override_caption"]
+            title = row["title"]
+            if row["override_title"] is not None:
+                title = row["override_title"]
+
+            items.append(Item(
+                id=str(row["platform_post_id"]),
+                post_id=str(row["post_id"]),
+                published_at=row["published_at"],
+                title=title or "",
+                text=text or "",
+                tags=list(row["tags"] or []),
+                platform=row["platform"],
+                account_name=row["account_name"] or "",
+                account_handle=row["account_handle"] or "",
+                remote_id=row["remote_id"] or "",
+            ))
+
+        if not items:
+            return []
+
+        # ONE MORE QUERY, NOT ONE PER POST. And deduplicated first: a
+        # crosspost is the SAME parent aimed at several accounts, so
+        # thirty rows on the page can easily be eight distinct posts.
+        post_ids = sorted({item.post_id for item in items})
+        cur.execute(_MEDIA_SQL,
+                    {"post_ids": [uuid.UUID(p) for p in post_ids]})
+        by_post: dict[str, list[Media]] = {}
+        for row in cur.fetchall():
+            by_post.setdefault(str(row["post_id"]), []).append(Media(
+                path=row["path"] or "",
+                kind=row["kind"] or "",
+                width=row["width"] or 0,
+                height=row["height"] or 0,
+                alt=row["alt_text"] or "",
+                thumbnail=row["thumbnail"] or "",
+            ))
+
+        for item in items:
+            item.media = by_post.get(item.post_id, [])
+
+        return items
+
+
+def health() -> dict[str, Any]:
+    """Can the database be reached, and is the connection really read only?
+
+    THE SECOND HALF IS THE POINT. "The database answers" is worth
+    knowing; "and it will refuse a write" is the invariant this whole
+    application rests on, and an invariant nothing ever checks is a
+    hope. This asks PostgreSQL rather than asserting it.
+    """
+    with pool().connection() as conn, conn.cursor() as cur:
+        cur.execute("SELECT current_setting('transaction_read_only')")
+        row = cur.fetchone()
+        return {"reachable": True, "read_only": bool(row and row[0] == "on")}

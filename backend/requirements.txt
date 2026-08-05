@@ -1,0 +1,15 @@
+# Deliberately short. This is a public website's backend: every package
+# here is one more thing to patch on a machine whose brief is to need no
+# attention, and one more way in.
+#
+# tomllib is in the standard library from Python 3.11, so the
+# configuration format costs nothing.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# psycopg 3, binary build so there is no libpq to install alongside it.
+# The connection is opened read_only — see backend/app/db.py — which is
+# PostgreSQL refusing writes rather than this code promising not to make
+# any.
+psycopg[binary,pool]==3.2.3

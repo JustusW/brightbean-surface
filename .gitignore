@@ -1,0 +1,26 @@
+# The real configuration names a database and a workspace and is per
+# deployment. surface.example.toml is the one that is committed.
+surface.toml
+
+# Secrets never live here. The database URL arrives through the
+# environment; this line exists so that a .env created for local work
+# cannot be committed by accident.
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Editors
+.vscode/
+.idea/
+.DS_Store

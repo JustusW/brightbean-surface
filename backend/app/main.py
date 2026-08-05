@@ -1,0 +1,147 @@
+"""The HTTP surface.
+
+Small on purpose. Three endpoints: what the site IS, what it has
+PUBLISHED, and what a static page SAYS. Everything else is the frontend's
+problem, and everything that differs between deployments is in
+surface.toml.
+
+READ ONLY, ENFORCED AT THE DATABASE. There is no POST, PUT, PATCH or
+DELETE anywhere in this file, and the connection underneath it is opened
+read_only so PostgreSQL would refuse one anyway. See backend/app/db.py.
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+
+from . import config as config_module
+from . import db
+
+app = FastAPI(
+    title="brightbean-surface",
+    # No interactive docs on a public website. There is nothing here worth
+    # a request builder, and it is one more surface to think about.
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+
+
+@lru_cache(maxsize=1)
+def config() -> config_module.Config:
+    """The configuration, read once.
+
+    Cached because it is read on every request and does not change while
+    the process runs — a deployment changes it and restarts, which is the
+    same shape every other configuration on these machines has.
+    """
+    return config_module.load()
+
+
+@app.get("/api/site")
+def site() -> dict:
+    """What this site is, and what pages it has.
+
+    The frontend builds its navigation from this rather than from a list
+    compiled into the bundle, so adding a page is a config change and a
+    restart — not a rebuild and a redeploy.
+    """
+    cfg = config()
+    return {
+        "title": cfg.title,
+        "locale": cfg.locale,
+        "tagline": cfg.tagline,
+        "nav": [
+            {"slug": p.slug, "title": p.title}
+            for p in cfg.pages if p.nav
+        ],
+        "footer": [
+            {"slug": p.slug, "title": p.title}
+            for p in cfg.pages if p.footer
+        ],
+    }
+
+
+@app.get("/api/feed")
+def feed(limit: int | None = None) -> dict:
+    """What the club has published, newest first."""
+    cfg = config()
+    # BOUNDED HERE AS WELL AS IN THE CONFIG. `?limit=` is a query
+    # parameter on a public endpoint, and an unbounded one is an
+    # invitation to ask for every post in the database repeatedly.
+    wanted = min(int(limit or cfg.limit), 100)
+
+    try:
+        items = db.feed(
+            workspace=cfg.workspace,
+            platforms=cfg.platforms,
+            accounts=cfg.accounts,
+            limit=wanted,
+        )
+    except Exception as exc:
+        # SAY THAT IT FAILED, NOT WHY. A stack trace or a DSN on a public
+        # page tells a stranger about the inside of the machine; the
+        # operator's copy is in the process log where it belongs.
+        raise HTTPException(
+            status_code=503,
+            detail="The feed is temporarily unavailable.",
+        ) from exc
+
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "published_at": (item.published_at.isoformat()
+                                 if item.published_at else None),
+                "title": item.title,
+                "text": item.text,
+                "tags": item.tags,
+                "platform": item.platform,
+                "account": {
+                    "name": item.account_name,
+                    "handle": item.account_handle,
+                },
+                "media": [
+                    {
+                        "url": cfg.media_url(m.path),
+                        "thumbnail": cfg.media_url(m.thumbnail),
+                        "kind": m.kind,
+                        "width": m.width,
+                        "height": m.height,
+                        "alt": m.alt,
+                    }
+                    for m in item.media
+                ],
+            }
+            for item in items
+        ],
+    }
+
+
+@app.get("/api/page/{slug}")
+def page(slug: str) -> dict:
+    """One static page's Markdown."""
+    found = config().page(slug)
+    if found is None:
+        raise HTTPException(status_code=404, detail="No such page.")
+    return {"slug": found.slug, "title": found.title, "body": found.body}
+
+
+@app.get("/api/healthz")
+def healthz() -> JSONResponse:
+    """Liveness, and the invariant.
+
+    It reports whether the connection is REALLY read only, asked of
+    PostgreSQL rather than asserted here. An invariant nothing ever
+    checks is a hope, and this one is the whole basis on which pointing a
+    public website at somebody's production database is defensible.
+    """
+    try:
+        state = db.health()
+    except Exception:
+        return JSONResponse(status_code=503,
+                            content={"ok": False, "database": False})
+    return JSONResponse(content={"ok": True, **state})

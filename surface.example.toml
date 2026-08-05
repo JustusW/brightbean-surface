@@ -1,0 +1,109 @@
+# brightbean-surface — one file, one deployment.
+#
+# Copy to surface.toml and fill in. surface.toml is gitignored, because it
+# names a specific database and workspace; this example is the one that
+# travels with the code.
+#
+# NO SECRETS HERE. The database URL arrives through the environment
+# (SURFACE_DATABASE_URL), so this file can be read by anyone who can read
+# the repository without handing them the instance.
+
+[site]
+title = "Verein für Modellflug Stutensee"
+# Sets <html lang>, which decides how a screen reader PRONOUNCES the page.
+# A German page announced in English is unintelligible rather than merely
+# wrong, so this is not cosmetic.
+locale = "de"
+tagline = "RC-Modellflug in Stutensee"
+
+
+[feed]
+# WHICH WORKSPACE. Brightbean scopes posts to a workspace, and an
+# organisation can hold several - this club runs two brands in two
+# workspaces. Naming the wrong one shows the wrong club's posts, which is
+# worse than showing none.
+workspace = "00000000-0000-0000-0000-000000000000"
+
+# WHICH PLATFORMS COUNT AS "the front page".
+#
+# BOTH INSTAGRAM VALUES ARE LISTED ON PURPOSE. `instagram` is an account
+# reached through a Facebook Page; `instagram_login` is Instagram Direct,
+# for a Professional account with no Page attached. They are separate
+# OAuth flows with separate app credentials, and an installation can
+# easily have one of each - this one does. Listing only the first shows
+# half the feed, and half a feed looks like posts going missing rather
+# than like a filter being wrong.
+platforms = ["instagram", "instagram_login"]
+
+# Narrow further to specific accounts by id. Empty means every connected
+# account on the platforms above, which is usually what is wanted.
+accounts = []
+
+limit = 30
+
+
+[media]
+# WHERE THE IMAGES ARE SERVED FROM. Brightbean stores a path relative to
+# its MEDIA_ROOT; this is the origin that serves them, and the surface
+# only ever builds URLs - it never serves the bytes itself.
+#
+# On any deployment that publishes to Instagram, Threads, Facebook or
+# Google Business this host is already publicly reachable, because those
+# platforms FETCH each image with their own servers rather than being
+# handed it.
+base = "https://files.wingert.dev"
+prefix = "/media/"
+
+
+# ---------------------------------------------------------------------
+# The static pages.
+# ---------------------------------------------------------------------
+#
+# Everything that is not the feed. Order here is the order in the
+# navigation.
+#
+# The body lives in a Markdown file rather than in this table: German
+# prose with headings does not belong on one TOML line, and a file can be
+# edited by somebody who has never seen TOML.
+
+[[pages]]
+slug = "platz"
+title = "Platz und Anfahrt"
+file = "pages/platz.md"
+nav = true
+
+[[pages]]
+slug = "mitgliedschaft"
+title = "Mitgliedschaft"
+file = "pages/mitgliedschaft.md"
+nav = true
+
+[[pages]]
+slug = "kontakt"
+title = "Kontakt"
+file = "pages/kontakt.md"
+nav = true
+
+# REQUIRED BY LAW for a German eingetragener Verein, and required to be
+# reachable within two clicks from every page (§5 TMG) - which is why
+# these three are pinned to the footer rather than left to the main nav.
+[[pages]]
+slug = "impressum"
+title = "Impressum"
+file = "pages/impressum.md"
+nav = false
+footer = true
+
+[[pages]]
+slug = "datenschutz"
+title = "Datenschutz"
+file = "pages/datenschutz.md"
+nav = false
+footer = true
+
+[[pages]]
+slug = "agb"
+title = "AGB"
+file = "pages/agb.md"
+nav = false
+footer = true
