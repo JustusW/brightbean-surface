@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import {
   A11y,
+  EffectCoverflow,
   Keyboard,
   Mousewheel,
   Navigation,
@@ -8,135 +10,204 @@ import {
   Zoom,
 } from "swiper/modules";
 import "swiper/css";
+import "swiper/css/effect-coverflow";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import "swiper/css/zoom";
 import type { FeedMedia } from "./api";
 
-/** THE gallery. It is a gallery ON THE PAGE, not a row that opens one.
+/** The gallery, in two layers.
  *
- *  "the posts on the mainpage are supposed to be in a gallery. not in a
- *  flat bullshit display that opens a gallery on click. the same fucking
- *  thing for impressionen. except there the gallery flows out to full
- *  width and may display multiple images at the same time as they fit."
+ *  ON THE PAGE: a coverflow gallery with its own arrows, pagination,
+ *  keyboard and drag, over an out-of-focus copy of the picture you are
+ *  looking at.
  *
- *  ONE PACKAGE. Swiper does the gallery AND the zoom, so there is no
- *  slider-plus-lightbox pair to patch, style and keep agreeing with each
- *  other. It arrives through npm and Vite bundles it into our own assets,
- *  exactly as the fonts are: this origin and the club's media host, and
- *  nothing else.
+ *  FULL SCREEN: click any picture and it opens filling the window, where
+ *  it can be zoomed to its real pixels AND still navigated — arrows,
+ *  keyboard and swipe all keep working while zoomed in. That is the layer
+ *  the inline gallery cannot be: zoom happens inside a slide, and a slide
+ *  on a post card is 307px wide, so magnifying a 1707px poster there is
+ *  reading it through a slot.
  *
- *  EVERY PARAMETER BELOW WAS READ, NOT ASSUMED. The first version set
- *  maxRatio and left everything else on its default, which is how a
- *  gallery ends up with a zoom that cannot be panned and a row whose last
- *  picture sits half off the edge. The whole of swiperjs.com/swiper-api
- *  is why each line is here; the ones that matter say so.
+ *  ONE PACKAGE for both layers. Swiper does the gallery, the 3D effect,
+ *  the zoom and the panning; there is no second library to patch or keep
+ *  in step. npm, bundled by Vite into our own assets — this origin and
+ *  the club's media host, nothing else.
  */
+
+/** Shared by both layers, so the zoom behaves identically in each.
+ *  panOnMouseMove and limitToOriginalSize are both FALSE by default:
+ *  without the first a zoomed picture cannot be moved with a mouse, and
+ *  without the second it magnifies past the real pixels into a blur. */
+const ZOOM = { maxRatio: 4, panOnMouseMove: true, limitToOriginalSize: true };
+
+const A11Y = {
+  prevSlideMessage: "Vorheriges Bild",
+  nextSlideMessage: "Nächstes Bild",
+  firstSlideMessage: "Erstes Bild",
+  lastSlideMessage: "Letztes Bild",
+  paginationBulletMessage: "Zu Bild {{index}} springen",
+  containerRoleDescriptionMessage: "Bildergalerie",
+  itemRoleDescriptionMessage: "Bild",
+  slideLabelMessage: "Bild {{index}} von {{slidesLength}}",
+};
+
 export default function PhotoGallery({ media }: { media: FeedMedia[] }) {
+  // Which picture the backdrop shows. An index rather than the object, so
+  // it survives the feed reloading with different media.
+  const [active, setActive] = useState(0);
+  // Which picture the full-screen view is open on; null means closed.
+  const [open, setOpen] = useState<number | null>(null);
+
+  // ESCAPE CLOSES IT, and the page underneath does not scroll while it is
+  // open — a full-screen viewer you can scroll the page behind is a
+  // viewer that loses your place.
+  useEffect(() => {
+    if (open === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(null);
+    };
+    window.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   if (media.length === 0) return null;
 
   const many = media.length > 1;
+  const behind = media[Math.min(active, media.length - 1)];
 
   return (
-    <Swiper
-      className="gal"
-      modules={[Navigation, Pagination, Keyboard, Mousewheel, Zoom, A11y]}
-      /* Natural width per slide at a shared height, so AS MANY AS FIT
-         stand side by side. This is the line that lets one component
-         serve both places: the page decides the room, the gallery fills
-         it — a post card shows a couple, Impressionen shows several, and
-         nothing here is told which it is in. */
-      slidesPerView="auto"
-      spaceBetween={8}
-      /* EXISTS FOR slidesPerView: 'auto', and the documentation says so:
-         "prevents partial slides from appearing misaligned at the end of
-         the swiper". Without it the row stops at an arbitrary position
-         and the last picture sits half cut off, which reads as breakage
-         rather than as more to come. */
-      snapToSlideEdge
-      /* Move by a viewful rather than by one picture. slidesPerGroupAuto
-         is documented as being for exactly this pair — slidesPerView
-         'auto' with slidesPerGroup 1 — and it skips only the slides
-         already IN VIEW, so nothing is stepped over unseen. */
-      slidesPerGroup={1}
-      slidesPerGroupAuto
-      /* When there are fewer pictures than fit — three posters across a
-         1600px page — centre them instead of leaving them pinned left
-         with a hole on the right. */
-      centerInsufficientSlides
-      /* Says it can be dragged, on a desktop, where there is no other
-         hint. Default is false. */
-      grabCursor
-      /* Click a picture that is only half in view and it comes fully in.
-         Double-click is the zoom, so the two do not fight. */
-      slideToClickedSlide
-      navigation={many}
-      /* DYNAMIC BULLETS, because this club will have forty photographs
-         before long and forty bullets is a smear. The documentation:
-         "Good to enable if you use bullets pagination with a lot of
-         slides." */
-      pagination={
-        many ? { clickable: true, dynamicBullets: true, dynamicMainBullets: 3 } : false
-      }
-      /* onlyInViewport stays at its default true: a page can hold several
-         of these, and the arrow keys should drive the one being looked
-         at rather than all of them at once. */
-      keyboard={{ enabled: true }}
-      /* forceToAxis is what makes this polite: only a HORIZONTAL wheel or
-         trackpad gesture moves the gallery, so ordinary vertical
-         scrolling still scrolls the page. releaseOnEdges hands the page
-         back once the row has run out. */
-      mousewheel={{ forceToAxis: true, releaseOnEdges: true }}
-      /* READ OFF THE ZOOM MODULE'S OWN PARAMETERS.
-       *
-       *   panOnMouseMove defaults to FALSE, so a zoomed picture could not
-       *   be moved with a mouse at all — on a desktop that is most of
-       *   what zooming a poster is for.
-       *
-       *   limitToOriginalSize defaults to FALSE, so it would magnify past
-       *   the real pixels into a blur. Measured: these posters are
-       *   1707x2560 and render 432 wide, so just under 4x IS their
-       *   original size — past that there is nothing more to see.
-       *
-       *   toggle stays true: double-click and double-tap.
-       */
-      zoom={{ maxRatio: 4, panOnMouseMove: true, limitToOriginalSize: true }}
-      /* Read aloud, and in German, because the page is German. */
-      a11y={{
-        prevSlideMessage: "Vorheriges Bild",
-        nextSlideMessage: "Nächstes Bild",
-        firstSlideMessage: "Erstes Bild",
-        lastSlideMessage: "Letztes Bild",
-        paginationBulletMessage: "Zu Bild {{index}} springen",
-        containerRoleDescriptionMessage: "Bildergalerie",
-        itemRoleDescriptionMessage: "Bild",
-        slideLabelMessage: "Bild {{index}} von {{slidesLength}}",
-      }}
-      /* No looping. A gallery that wraps round silently means you cannot
-         tell whether you have seen everything. */
-      loop={false}
-    >
-      {media.map((m, i) => (
-        <SwiperSlide key={i}>
-          {/* swiper-zoom-container is what the Zoom module looks for.
-              Without it the picture shows and never magnifies. */}
-          <div className="swiper-zoom-container">
+    <>
+      <Swiper
+        className="gal"
+        modules={[
+          Navigation,
+          Pagination,
+          Keyboard,
+          Mousewheel,
+          Zoom,
+          EffectCoverflow,
+          A11y,
+        ]}
+        effect="coverflow"
+        /* Coverflow turns the slides around the one it is centred on, so
+           it needs one to be centred. */
+        centeredSlides
+        coverflowEffect={{
+          rotate: 32,
+          stretch: 0,
+          depth: 140,
+          modifier: 1,
+          slideShadows: true,
+        }}
+        /* Natural width per slide at a shared height, so as many as fit
+           are shown. It is what lets one component serve both places: the
+           page decides the room and the gallery fills it. */
+        slidesPerView="auto"
+        spaceBetween={8}
+        /* Exists for slidesPerView 'auto': stops a partial slide sitting
+           misaligned at the end of the row. */
+        snapToSlideEdge
+        slidesPerGroup={1}
+        slidesPerGroupAuto
+        grabCursor
+        navigation={many}
+        pagination={
+          many
+            ? { clickable: true, dynamicBullets: true, dynamicMainBullets: 3 }
+            : false
+        }
+        keyboard={{ enabled: true }}
+        /* forceToAxis: a horizontal trackpad gesture moves the gallery,
+           and ordinary vertical scrolling still scrolls the page. */
+        mousewheel={{ forceToAxis: true, releaseOnEdges: true }}
+        a11y={A11Y}
+        loop={false}
+        onSlideChange={(s) => setActive(s.activeIndex)}
+        /* CLICK OPENS THE FULL-SCREEN VIEW. clickedIndex is Swiper's own
+           record of which slide was hit, so clicking a picture that is
+           only half in view opens THAT one rather than the centred one. */
+        onClick={(s) => {
+          if (typeof s.clickedIndex === "number") setOpen(s.clickedIndex);
+        }}
+      >
+        {/* The out-of-focus background: the picture in front of you,
+            blurred and darkened, filling everything the slides do not.
+            slot="container-start" is Swiper's own way of putting an
+            element inside the container rather than among the slides.
+            Decorative — it is the same photograph again. */}
+        <div
+          slot="container-start"
+          className="galbg"
+          aria-hidden="true"
+          style={{ backgroundImage: `url(${behind.url})` }}
+        />
+
+        {media.map((m, i) => (
+          <SwiperSlide key={i}>
             <img
               src={m.url}
               /* Alt text comes from the media library, where somebody
-                 wrote one. An empty alt is correct for a decorative
-                 image and far better than inventing a description of a
-                 photograph nobody here has seen. */
+                 wrote one. An empty alt is correct for a decorative image
+                 and better than inventing a description of a photograph
+                 nobody here has seen. */
               alt={m.alt}
-              /* Since Swiper 9 lazy loading IS the browser's own, with
-                 the preloader element below as the spinner. */
               loading={i < 4 ? "eager" : "lazy"}
               decoding="async"
             />
-          </div>
-          <div className="swiper-lazy-preloader" />
-        </SwiperSlide>
-      ))}
-    </Swiper>
+            <div className="swiper-lazy-preloader" />
+          </SwiperSlide>
+        ))}
+      </Swiper>
+
+      {open !== null && (
+        <div className="galfull" role="dialog" aria-modal="true" aria-label="Bilder">
+          <button
+            className="galclose"
+            onClick={() => setOpen(null)}
+            aria-label="Schließen"
+          >
+            ✕
+          </button>
+
+          <Swiper
+            className="galfullswiper"
+            modules={[Navigation, Pagination, Keyboard, Zoom, A11y]}
+            initialSlide={open}
+            slidesPerView={1}
+            centeredSlides
+            spaceBetween={24}
+            navigation={many}
+            pagination={many ? { type: "fraction" } : false}
+            /* onlyInViewport false: this fills the window, and the arrow
+               keys must drive it wherever the focus happens to be. */
+            keyboard={{ enabled: true, onlyInViewport: false }}
+            /* THE POINT OF THIS LAYER. The slide is now the whole window,
+               so zooming to the poster's real pixels shows a readable
+               piece of it rather than a slot — and navigation stays live
+               while zoomed. */
+            zoom={ZOOM}
+            a11y={A11Y}
+            loop={false}
+          >
+            {media.map((m, i) => (
+              <SwiperSlide key={i}>
+                {/* swiper-zoom-container is what the Zoom module looks
+                    for. Without it the picture shows and never
+                    magnifies. */}
+                <div className="swiper-zoom-container">
+                  <img src={m.url} alt={m.alt} decoding="async" />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        </div>
+      )}
+    </>
   );
 }

@@ -349,6 +349,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 /* Swiper draws the gallery and does the zooming. This only tells it how
    big the pictures are and dresses its controls to match the site. */
 .gal {
+  position: relative;
   /* A quiet backing, so a picture that has not arrived yet is a dark
      rectangle rather than a white flash. */
   background: #0e1c27;
@@ -372,17 +373,91 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   height: min(58vh, 460px);
 }
 
-/* swiper-zoom-container is Swiper's own hook for the zoom. Its stylesheet
-   sizes the image to fit a full-width slide, which is the opposite of
-   what an auto-width slide needs — hence max-width: none. */
-.gal .swiper-zoom-container { width: auto; height: 100%; }
-.gal .swiper-zoom-container > img {
+/* THE OUT-OF-FOCUS BACKGROUND: the picture you are looking at, blurred
+   and darkened, filling everything the slides do not. With coverflow and
+   centred slides that is most of the frame, which is what stops the
+   gallery reading as pictures sliced off at the card's edges.
+
+   Inset past the edges so the blur has no visible border of its own —
+   a blurred box shows its boundary otherwise. */
+.galbg {
+  position: absolute;
+  inset: -40px;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(36px) brightness(0.42) saturate(125%);
+  transform: scale(1.05);
+  transition: background-image 240ms ease;
+  pointer-events: none;
+}
+
+/* The slides sit ON the backdrop rather than under it. */
+.gal .swiper-wrapper { position: relative; z-index: 1; }
+.gal .swiper-button-prev,
+.gal .swiper-button-next,
+.gal .swiper-pagination { z-index: 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .galbg { transition: none; }
+}
+
+/* Auto-width slides size themselves from the picture: fix the height and
+   let the width follow. max-width: none because Swiper's own rules
+   assume a full-width slide, which is the opposite of this. */
+.gal .swiper-slide img {
   width: auto;
   height: 100%;
   max-width: none;
-  max-height: none;
   display: block;
+  border-radius: 8px;
 }
+
+/* ---- the full-screen view -------------------------------------------- */
+/* THE ZOOMED-IN NAVIGABLE LAYER. The inline gallery cannot be this: its
+   zoom happens inside a slide, and a slide on a post card is 307px wide,
+   so magnifying a 1707px poster there is reading it through a slot. Here
+   the slide IS the window, so the zoom has somewhere to go — and the
+   arrows, the keyboard and swiping all keep working while zoomed. */
+
+.galfull {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(6, 14, 20, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  --swiper-navigation-color: #fff;
+  --swiper-navigation-size: 34px;
+  --swiper-pagination-color: #fff;
+}
+
+.galfullswiper { width: 100%; height: 100%; }
+.galfullswiper .swiper-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+/* No overrides here: Swiper's own zoom-container rules are exactly right
+   for a full-width slide, which is what these are. */
+
+.galclose {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 210;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+.galclose:hover { background: rgba(255, 255, 255, 0.26); }
 
 /* The arrows sit ON the pictures, so they have to be legible over
    anything without shouting over it. */
