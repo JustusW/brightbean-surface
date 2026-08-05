@@ -220,7 +220,35 @@ def current_member(request: Request,
 
 def _account(member: Member) -> dict:
     """What the browser is told. Deliberately thin — see api.ts."""
-    return {"email": member.email, "approved": member.is_approved}
+    return {
+        "email": member.email,
+        "approved": member.is_approved,
+        # So the members area knows whether to offer the registrations
+        # list. It is NOT what authorises anything: every admin endpoint
+        # below checks the column again, server-side, because a flag the
+        # browser holds is a flag the browser can edit.
+        "admin": member.is_admin,
+    }
+
+
+def require_admin(member: Member | None = Depends(current_member)) -> Member:
+    """Refuse anybody who is not on the board.
+
+    ONE DEPENDENCY, USED BY EVERY ADMIN ROUTE, so "is this person
+    allowed" is answered in exactly one place. Scattering the check
+    through the handlers is how one of them eventually gets written
+    without it.
+
+    404 AND NOT 403 for a signed-in non-admin: an ordinary member has no
+    business learning that a members-administration API exists at all.
+    Somebody who is not signed in gets the usual 401, because that is
+    simply the state they are in.
+    """
+    if member is None:
+        raise HTTPException(status_code=401, detail="Nicht angemeldet.")
+    if not member.is_admin:
+        raise HTTPException(status_code=404, detail="Nicht gefunden.")
+    return member
 
 
 # ---------------------------------------------------------------------------
@@ -507,3 +535,93 @@ def _member_for_google(db: DbSession, subject: str, email: str,
     db.add(Identity(member_id=member.id, provider="google", subject=subject))
     db.commit()
     return member
+
+
+# ---------------------------------------------------------------------------
+# The board: seeing who has registered, and letting them in
+# ---------------------------------------------------------------------------
+#
+# WHY THIS IS ON THE WEBSITE AND NOT ONLY IN THE CONTROL PLANE. Approving
+# a member is a CLUB decision, made by people who will never open a
+# terminal or a tailnet. members.py and Vogelwarte's button remain — they
+# are how the FIRST admin is made, and how somebody with the server
+# recovers if this ever breaks — but the routine act belongs where the
+# board already is.
+
+
+@router.get("/registrations")
+def registrations(_: Member = Depends(require_admin),
+                  db: DbSession = Depends(session)) -> JSONResponse:
+    """Everybody who has signed up, newest first.
+
+    THE WHOLE LIST, not only those awaiting a decision. An approval
+    screen that hides what it has already done gives no way to notice a
+    mistake, and "who is in this club" is the question actually being
+    asked.
+    """
+    members = db.scalars(
+        select(Member).order_by(Member.created_at.desc())).all()
+
+    # ONE QUERY FOR THE PROVIDERS, not one per member. A club list is
+    # short, and it will still be short in ten years — but the habit of
+    # asking per row is how a page gets slow somewhere it matters.
+    ways: dict[str, list[str]] = {}
+    for member_id, provider in db.execute(
+            select(Identity.member_id, Identity.provider)).all():
+        ways.setdefault(str(member_id), []).append(provider)
+
+    return JSONResponse({"members": [
+        {
+            "email": m.email,
+            "approved": m.is_approved,
+            "active": m.is_active,
+            "admin": m.is_admin,
+            "created": m.created_at.date().isoformat(),
+            # How they get in, which is the useful thing to see beside a
+            # name: "google" or "password", or both.
+            "how": sorted(
+                (["password"] if m.password_hash is not None else [])
+                + ways.get(str(m.id), [])),
+        }
+        for m in members
+    ]})
+
+
+@router.post("/registrations/decide")
+def decide(payload: dict = Body(default={}),
+           admin: Member = Depends(require_admin),
+           db: DbSession = Depends(session)) -> JSONResponse:
+    """Let somebody in, or put them back out.
+
+    DELIBERATELY NOT A DELETE. Refusing a registration sets approved
+    false; it does not remove the account. Somebody who signed up in
+    good faith and was declined by a mis-click should still be there to
+    be approved a minute later, and an account that vanishes gives the
+    person no way to tell whether they ever registered.
+    """
+    email = (payload.get("email", "") or "").strip().lower()
+    verb = (payload.get("what", "") or "").strip().lower()
+    if verb not in ("approve", "revoke"):
+        raise HTTPException(status_code=400,
+                            detail="what muss approve oder revoke sein.")
+
+    member = db.scalar(select(Member).where(Member.email == email))
+    if member is None:
+        raise HTTPException(status_code=404,
+                            detail="Dieses Konto gibt es nicht.")
+
+    # AN ADMIN CANNOT REVOKE THEMSELVES. Not squeamishness: this is the
+    # only privilege that can remove the ability to grant privileges,
+    # and a club with no usable admin has to be repaired from the server
+    # — which is exactly the situation the website version exists to
+    # avoid. Somebody else's admin can still be taken away, on the
+    # server, with members.py.
+    if member.id == admin.id and verb == "revoke":
+        raise HTTPException(
+            status_code=409,
+            detail="Du kannst Dich nicht selbst sperren.")
+
+    member.is_approved = verb == "approve"
+    db.commit()
+    return JSONResponse({"email": member.email,
+                         "approved": member.is_approved})

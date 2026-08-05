@@ -1172,3 +1172,105 @@ main > .empty { margin-top: 40px; }
   .post .head { padding: 18px 18px 14px; }
   .topinner { padding: 12px 16px; }
 }
+
+/* ---- the board: who has registered ----------------------------------- */
+/* Only ever rendered for an admin. Wider than the login card because it
+   is a list that grows, where .memberbox is 440px measured for a form. */
+
+.board {
+  max-width: 700px;
+  margin: 28px auto 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 28px 30px 30px;
+  box-shadow: var(--shadow);
+}
+
+.board h2 {
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* HOW MANY ARE WAITING, beside the heading. The one number somebody
+   opens this page to see, so it should not have to be counted off a
+   list. */
+.board .wartet {
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7d4a00;
+  background: #fff2d8;
+  border: 1px solid #f0d6a0;
+  border-radius: 999px;
+  padding: 3px 11px;
+}
+
+.regs { list-style: none; margin: 0; padding: 0; }
+
+.regs li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.regs li:last-child { border-bottom: 0; }
+
+/* THE ONES STILL WAITING, marked down the edge rather than by colouring
+   the whole row: the list is read by scanning the left, and a tinted row
+   fights the text on it. */
+.regs li.offen {
+  box-shadow: inset 3px 0 0 var(--sun);
+  padding-left: 13px;
+}
+
+.regs .who { display: flex; flex-direction: column; margin-right: auto; }
+.regs .who strong {
+  font-weight: 600;
+  /* Long addresses must wrap rather than push the button off a phone. */
+  overflow-wrap: anywhere;
+}
+.regs .wie { color: var(--muted); font-size: 13.5px; }
+
+.regs button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--line);
+}
+.regs button:disabled { opacity: 0.5; cursor: default; }
+
+.regs .regok { background: var(--sky-deep); border-color: var(--sky-deep);
+               color: #fff; }
+.regs .regok:hover:not(:disabled) { background: var(--sky);
+                                    border-color: var(--sky); }
+
+/* DELIBERATELY QUIET. Taking somebody's access away is a real act and
+   should not be the easiest-looking button on the row. */
+.regs .regrevoke { background: var(--wash); color: var(--ink-soft); }
+.regs .regrevoke:hover:not(:disabled) { border-color: #c0392b;
+                                        color: #7d241a; }
+
+.regs .selbst {
+  color: var(--muted);
+  font-size: 13.5px;
+  padding: 0 6px;
+}
+
+@media (max-width: 780px) {
+  .board { padding: 22px 18px 24px; border-radius: 14px; }
+}

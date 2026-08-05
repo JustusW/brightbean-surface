@@ -1,7 +1,147 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, api } from "./api";
-import type { MemberAccount } from "./api";
+import type { MemberAccount, Registration } from "./api";
+
+/** The board's view: who has signed up, and letting them in.
+ *
+ *  ONLY RENDERED FOR AN ADMIN, and that is a convenience rather than a
+ *  control — both endpoints check the column server-side and answer 404
+ *  to anybody else, because a flag the browser holds is a flag the
+ *  browser can edit.
+ *
+ *  IT SHOWS EVERYBODY, not only those still waiting. An approval screen
+ *  that hides what it has already done gives no way to notice a
+ *  mistake, and "who is in this club" is the question actually being
+ *  asked. Those waiting are simply listed first.
+ */
+function Board({ me }: { me: MemberAccount }) {
+  const [rows, setRows] = useState<Registration[] | null>(null);
+  const [failed, setFailed] = useState("");
+  const [busy, setBusy] = useState("");
+
+  const load = () =>
+    api
+      .registrations()
+      .then((r) => setRows(r.members))
+      .catch((e) =>
+        setFailed(
+          e instanceof ApiError
+            ? e.message
+            : "Die Liste lässt sich gerade nicht laden.",
+        ),
+      );
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const decide = async (email: string, what: "approve" | "revoke") => {
+    setBusy(email);
+    setFailed("");
+    try {
+      await api.decide(email, what);
+      await load();
+    } catch (e) {
+      setFailed(
+        e instanceof ApiError ? e.message : "Das hat nicht geklappt.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (failed && rows === null) {
+    return (
+      <div className="board">
+        <h2>Registrierungen</h2>
+        <p className="membererror" role="alert">
+          {failed}
+        </p>
+      </div>
+    );
+  }
+  if (rows === null) {
+    return (
+      <div className="board">
+        <h2>Registrierungen</h2>
+        <p className="empty">Lädt…</p>
+      </div>
+    );
+  }
+
+  // Waiting first — that is the list somebody opened this page to act
+  // on. Within each group, newest first, as the backend sent them.
+  const sorted = [...rows].sort(
+    (a, b) => Number(a.approved) - Number(b.approved),
+  );
+  const waiting = rows.filter((r) => !r.approved).length;
+
+  return (
+    <div className="board">
+      <h2>
+        Registrierungen
+        {waiting > 0 && <span className="wartet">{waiting} wartet</span>}
+      </h2>
+
+      {failed && (
+        <p className="membererror" role="alert">
+          {failed}
+        </p>
+      )}
+
+      {rows.length === 0 && (
+        <p className="empty">Es hat sich noch niemand registriert.</p>
+      )}
+
+      <ul className="regs">
+        {sorted.map((r) => (
+          <li key={r.email} className={r.approved ? "" : "offen"}>
+            <div className="who">
+              <strong>{r.email}</strong>
+              <span className="wie">
+                {r.created} · {r.how.join(" + ") || "?"}
+                {r.admin && " · Vorstand"}
+                {!r.active && " · gesperrt"}
+              </span>
+            </div>
+            {/* THE ONE CASE WITH NO BUTTON: an admin cannot revoke
+                themselves. It is the only privilege that can remove the
+                ability to grant privileges, and a club with no usable
+                admin has to be repaired from the server — which is
+                exactly what this page exists to avoid. The server
+                refuses it too; this only avoids offering it. */}
+            {r.email === me.email ? (
+              <span className="selbst">Du</span>
+            ) : r.approved ? (
+              <button
+                className="regrevoke"
+                disabled={busy === r.email}
+                onClick={() => decide(r.email, "revoke")}
+              >
+                Zugang entziehen
+              </button>
+            ) : (
+              <button
+                className="regok"
+                disabled={busy === r.email}
+                onClick={() => decide(r.email, "approve")}
+              >
+                Freischalten
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <p className="membernote">
+        Freischalten macht aus einem Konto eine Mitgliedschaft. Wer
+        freigeschaltet ist, sieht den internen Bereich beim nächsten
+        Seitenaufruf — niemand wird dafür abgemeldet.
+      </p>
+    </div>
+  );
+}
 
 /** The members area: sign up, sign in, and the welcome page.
  *
@@ -161,6 +301,11 @@ export default function Members() {
             Abmelden
           </button>
         </div>
+
+        {/* THE BOARD'S WORK, below the welcome and only for the board.
+            Outside .memberbox because it is a list that grows, and the
+            440px card was measured for a login form. */}
+        {member.admin && <Board me={member} />}
       </section>
     );
   }

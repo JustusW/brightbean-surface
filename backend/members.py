@@ -45,7 +45,8 @@ def show(session) -> int:
         print("no members yet")
         return 0
     print(f"{len(members)} member(s), oldest first\n")
-    print(f"  {'approved':8s} {'active':6s} {'how':16s} {'created':10s} email")
+    print(f"  {'approved':8s} {'active':6s} {'admin':5s} {'how':16s} "
+          f"{'created':10s} email")
     for m in members:
         ways = session.scalars(
             select(Identity.provider).where(Identity.member_id == m.id)).all()
@@ -54,13 +55,14 @@ def show(session) -> int:
             how = ("password," + how).rstrip(",")
         print(f"  {'yes' if m.is_approved else 'NO':8s} "
               f"{'yes' if m.is_active else 'NO':6s} "
+              f"{'YES' if m.is_admin else '-':5s} "
               f"{how or '?':16s} "
               f"{m.created_at.date().isoformat():10s} {m.email}")
     return 0
 
 
 def set_flag(session, email: str, *, approved: bool | None = None,
-             active: bool | None = None) -> int:
+             active: bool | None = None, admin: bool | None = None) -> int:
     # LOWERCASED, because that is how it is stored — see _clean_email in
     # app/auth.py. Looking one up with the capitals somebody typed would
     # report "no such member" about an account sitting right there.
@@ -74,8 +76,16 @@ def set_flag(session, email: str, *, approved: bool | None = None,
         member.is_approved = approved
     if active is not None:
         member.is_active = active
+    if admin is not None:
+        member.is_admin = admin
+        # An admin who cannot get in is not an admin. Granting the board
+        # flag to somebody still waiting for approval would be a button
+        # they can see and not reach.
+        if admin:
+            member.is_approved = True
     session.commit()
-    print(f"{email}: approved={member.is_approved} active={member.is_active}")
+    print(f"{email}: approved={member.is_approved} "
+          f"active={member.is_active} admin={member.is_admin}")
     # NO SESSIONS ARE TOUCHED ON APPROVAL, deliberately: /api/auth/me
     # reads is_approved live, so somebody already signed in sees the
     # members area on their next page load rather than being logged out
@@ -90,7 +100,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="what", required=True)
     sub.add_parser("list")
-    for name in ("approve", "revoke", "block", "unblock"):
+    for name in ("approve", "revoke", "block", "unblock",
+                 "admin", "unadmin"):
         one = sub.add_parser(name)
         one.add_argument("email")
     args = parser.parse_args()
@@ -107,6 +118,10 @@ def main() -> int:
             return set_flag(session, args.email, active=False)
         if args.what == "unblock":
             return set_flag(session, args.email, active=True)
+        if args.what == "admin":
+            return set_flag(session, args.email, admin=True)
+        if args.what == "unadmin":
+            return set_flag(session, args.email, admin=False)
     return 2
 
 

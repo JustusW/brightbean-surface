@@ -109,6 +109,22 @@ class Member(Base):
                                             default=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False,
                                               default=False)
+
+    # WHO MAY LET SOMEBODY ELSE IN. The board, in practice.
+    #
+    # A FLAG AND NOT A ROLE TABLE. There is exactly one privilege here —
+    # seeing who has registered and approving them — and a roles-and-
+    # permissions model for a single boolean is machinery that has to be
+    # understood by whoever inherits this in order to express nothing
+    # extra. If a second privilege ever appears, THAT is when the shape
+    # should change, and a generated migration will make it cheap.
+    #
+    # DEFAULTS FALSE, and there is no way to grant it from the website.
+    # The first admin is made with members.py on the server, which means
+    # the bootstrap requires reaching the machine rather than being the
+    # first person to find the signup form.
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                           default=False)
     email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False,
                                                  default=False)
 

@@ -68,6 +68,23 @@ export interface MemberAccount {
    *  membership. Until then the welcome page says so instead of
    *  pretending the person is in. */
   approved: boolean;
+  /** Whether to OFFER the registrations list — and nothing more than
+   *  that. It authorises nothing: every admin endpoint checks the
+   *  column again server-side, because a flag the browser holds is a
+   *  flag the browser can edit. */
+  admin: boolean;
+}
+
+/** One person who has signed up, as the board sees them. */
+export interface Registration {
+  email: string;
+  approved: boolean;
+  active: boolean;
+  admin: boolean;
+  /** ISO date. */
+  created: string;
+  /** How they get in: "password", "google", or both. */
+  how: string[];
 }
 
 /** What went wrong, as the BACKEND put it.
@@ -145,6 +162,19 @@ export const api = {
   login: (email: string, password: string) =>
     post<MemberAccount>("/api/auth/login", { email, password }),
   logout: () => post<void>("/api/auth/logout", {}),
+
+  // ---- the board ------------------------------------------------------
+  //
+  // ADMIN ONLY, and enforced there rather than here. Both answer 404 to
+  // a signed-in member who is not on the board — an ordinary member has
+  // no business learning that this exists.
+  registrations: () =>
+    get<{ members: Registration[] }>("/api/auth/registrations"),
+  decide: (email: string, what: "approve" | "revoke") =>
+    post<{ email: string; approved: boolean }>(
+      "/api/auth/registrations/decide",
+      { email, what },
+    ),
 
   /** WHERE THE GOOGLE LEG STARTS. A full page navigation rather than a
    *  fetch: the browser has to leave for Google and come back, and an
