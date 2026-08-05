@@ -9,7 +9,9 @@ import { armAutoReload } from "./autoreload";
    visitor's browser never tells Google, or anyone else, that they looked
    at a model aircraft club's website.
    Variable weights: one file per family covering every weight, which is
-   smaller than shipping the three or four static cuts we would need. */
+   smaller than shipping the three or four static cuts we would need.
+   They are imported HERE rather than in a component so Vite bundles each
+   family exactly once. */
 import "@fontsource-variable/inter";
 import "@fontsource-variable/space-grotesk";
 

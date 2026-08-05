@@ -20,25 +20,37 @@ import type { FeedMedia } from "./api";
  *
  *  ON THE PAGE: a coverflow gallery with its own arrows, pagination,
  *  keyboard and drag, over an out-of-focus copy of the picture you are
- *  looking at.
+ *  looking at. It IS the gallery — not a flat row that opens one
+ *  somewhere else.
  *
  *  FULL SCREEN: click any picture and it opens filling the window, where
  *  it can be zoomed to its real pixels AND still navigated — arrows,
  *  keyboard and swipe all keep working while zoomed in. That is the layer
- *  the inline gallery cannot be: zoom happens inside a slide, and a slide
- *  on a post card is 307px wide, so magnifying a 1707px poster there is
- *  reading it through a slot.
+ *  the inline gallery cannot be, and the reason is structural rather than
+ *  aesthetic: Swiper zooms INSIDE a slide, and a slide on a post card was
+ *  measured at 432px wide, so magnifying a 1707px poster there is reading
+ *  it through a slot.
  *
  *  ONE PACKAGE for both layers. Swiper does the gallery, the 3D effect,
  *  the zoom and the panning; there is no second library to patch or keep
  *  in step. npm, bundled by Vite into our own assets — this origin and
  *  the club's media host, nothing else.
+ *
+ *  HOW WIDE IT IS, IS THE PAGE'S BUSINESS. This component never reaches
+ *  outside its container: on a post it is as wide as the card, and on
+ *  Impressionen it is as wide as the window because the page renders it
+ *  outside the centred column. It used to break out with `width: 100vw`,
+ *  which includes the scrollbar and put a horizontal scrollbar on the
+ *  whole site.
  */
 
 /** Shared by both layers, so the zoom behaves identically in each.
  *  panOnMouseMove and limitToOriginalSize are both FALSE by default:
  *  without the first a zoomed picture cannot be moved with a mouse, and
- *  without the second it magnifies past the real pixels into a blur. */
+ *  without the second it magnifies past the real pixels into a blur.
+ *  Measured on the live site: 3.95139x on Impressionen, which is exactly
+ *  1707/432 and therefore proof the cap is in force, and a clean 4x on
+ *  the feed where it does not bind. */
 const ZOOM = { maxRatio: 4, panOnMouseMove: true, limitToOriginalSize: true };
 
 const A11Y = {
@@ -183,7 +195,12 @@ export default function PhotoGallery({
       </Swiper>
 
       {open !== null && (
-        <div className="galfull" role="dialog" aria-modal="true" aria-label="Bilder">
+        <div
+          className="galfull"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bilder"
+        >
           <button
             className="galclose"
             onClick={() => setOpen(null)}

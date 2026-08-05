@@ -1,18 +1,19 @@
 /* The club's website.
  *
- * REBUILT AFTER LOOKING AT IT. The first version was written from a
- * description of the content rather than from the rendered page, and it
- * showed: three images in a two-column grid left a large empty cell, and
- * event posters were being cropped to 4:3 by object-fit: cover — which
- * destroyed the actual information, because for these posts the content
- * IS the image.
- *
  * READ ON A PHONE, AT A FLYING FIELD, IN SUNLIGHT, BY PEOPLE WHOSE EYES
  * ARE NOT WHAT THEY WERE. That decides the base size, the contrast and
  * the tap targets. None of it should be quietly shrunk to fit more in.
  *
- * No framework. Eight pages and a feed do not need one, and every
+ * NO FRAMEWORK. Eight pages and a feed do not need one, and every
  * kilobyte is downloaded over a rural mobile connection.
+ *
+ * THE ONE RULE THAT IS NOT NEGOTIABLE HERE: NEVER `100vw`.
+ * 100vw INCLUDES the vertical scrollbar's width, so any element sized
+ * with it is about fifteen pixels wider than the page and puts a
+ * horizontal scrollbar on the whole site. The full-width things — the
+ * hero, the Impressionen gallery, the backdrop — are full width because
+ * the markup puts them at the top level, where 100% of the body IS the
+ * page. There is no arithmetic to get wrong and nothing to escape from.
  */
 
 :root {
@@ -38,9 +39,9 @@
      Inter for reading — it was drawn for screens and holds up at the
      small sizes the legal pages need. Space Grotesk for headings: a
      geometric grotesque with real character, which is the point. The
-     previous version set everything in system-ui at weight 780, and a
-     bold system font with a text-shadow is exactly the default-theme
-     look that made the page read as generic. */
+     first version set everything in system-ui at weight 780, and a bold
+     system font with a text-shadow is exactly the default-theme look
+     that made the page read as generic. */
   --font: "Inter Variable", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif,
@@ -49,20 +50,23 @@
   font-family: var(--font);
   font-size: 18px;
   color: var(--ink);
-  background: var(--paper);
   -webkit-font-smoothing: antialiased;
 }
 
 * { box-sizing: border-box; }
 
-/* NOT FLAT WHITE. A very faint vertical gradient across the whole
+/* THE GRADIENT LIVES ON <html>, NOT ON <body>, and that is load-bearing
+   rather than tidy: a background on the root element is painted as the
+   CANVAS background, below everything — which leaves room for the fixed
+   backdrop at z-index -1 to sit above it and below the page. Put this on
+   body and the backdrop disappears behind it.
+
+   NOT FLAT WHITE. A very faint vertical gradient across the whole
    document, cool at the top and settling a little deeper towards the
    foot — enough that the page has some air in it, nowhere near enough to
    notice as a colour. Pure white behind a page of photographs reads as
    unfinished. */
-body {
-  margin: 0;
-  line-height: 1.6;
+html {
   background: linear-gradient(
     180deg,
     #fbfdfe 0%,
@@ -72,7 +76,19 @@ body {
   /* No fixed attachment: the gradient is meant to span the PAGE, so a
      long page spreads it further rather than repeating it per screen. */
   background-attachment: scroll;
+}
+
+body {
+  margin: 0;
+  line-height: 1.6;
   min-height: 100vh;
+  /* Deliberately transparent. See above. */
+  background: transparent;
+  /* THE PAGE MUST NOT END UNDERNEATH THE DOCK. Content is padded by the
+     collapsed height, so the last line of a page is readable rather than
+     sitting behind a bar - and the dock only overlaps itself when it
+     expands, at which point you have reached the end anyway. */
+  padding-bottom: 46px;
 }
 
 img { max-width: 100%; height: auto; display: block; }
@@ -85,6 +101,47 @@ a { color: var(--sky-deep); }
   outline: 3px solid var(--sky);
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* ---- the backdrop ---------------------------------------------------- */
+/* The club's own airfield panorama, behind the whole site, panning
+   sideways as you scroll.
+ *
+ * z-index: -1 so it sits above the canvas gradient and below every piece
+ * of content, with nothing else needing a z-index of its own. Fixed, so
+ * it does not contribute to scrollable overflow and cannot widen the
+ * page whatever its picture measures.
+ *
+ * THE BLUR IS ALREADY IN THE FILE — baked at build time by
+ * notes/bake_backdrop.py, which is why it is 13.6 kB. A CSS filter here
+ * would be recomposited on every frame this thing moves, and it moves on
+ * every scroll event. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  /* Transparent enough to be weather rather than a picture. The page has
+     to stay comfortably readable over it. */
+  opacity: 0.5;
+  --pan: 0px;
+}
+
+.backdropimg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* WIDER THAN THE WINDOW BY EXACTLY THE PAN DISTANCE, so there is
+     always slack to move within and an edge can never come into view.
+     Bounded rather than scaled by height: the source is 4.75:1, and
+     `height: 100%` on a phone would build a four-thousand-pixel layer to
+     show eight hundred of it. */
+  width: calc(100% + 240px);
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  transform: translateX(var(--pan));
 }
 
 /* ---- header ---------------------------------------------------------- */
@@ -181,23 +238,27 @@ a { color: var(--sky-deep); }
 }
 
 /* ---- the hero -------------------------------------------------------- */
-/* FULL BLEED, WITH A REAL PICTURE. The first version was a heading on
-   white — nothing on the page said "model aviation club" until you had
-   scrolled to a photograph. The image is the newest post's own first
-   picture, so it is never stale and nobody has to maintain it. */
+/* ONE hero, both pages, and it is a TOP-LEVEL element on each of them —
+ * a sibling of <main>, never a child. That is what makes it the width of
+ * the page without `100vw` and without `margin-left: calc(50% - 50vw)`,
+ * whose result depends on the box it happens to sit in. Nested in the
+ * Impressionen column, that hack made the same component behave
+ * differently on the two pages; at the top level there is nothing left
+ * to differ. */
 
 .hero {
   position: relative;
-  /* FULL WINDOW WIDTH wherever it is used, including inside a centred
-     column — Impressionen sits in one and the front page does not, and
-     the hero should not care which. */
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  width: 100%;
 
-  /* TWICE AS HIGH AT THE TOP, settling to its normal size as you scroll.
-     --grow runs from 1 to 0 and --pan is how far to push the media down
-     to hold it still; Hero.tsx supplies both numbers and nothing else,
-     so the shape of the thing stays here where it can be read. */
+  /* TWICE AS HIGH AT THE TOP, settling as you scroll. The two heights
+     are stated so that the large one is EXACTLY twice the small one at
+     every viewport size, whichever side of the clamp it falls on — so
+     "twice the height" is a property of this stylesheet rather than of a
+     number somebody typed into a component.
+
+     THE RESTING HEIGHT ITSELF IS NOT YET AGREED. It is the number that
+     has been wrong three times, and it will be measured on the live page
+     and put to the shepherd rather than guessed a fourth time. */
   --hero-small: min(46vh, 420px);
   --hero-large: min(92vh, 840px);
   --grow: 1;
@@ -210,16 +271,20 @@ a { color: var(--sky-deep); }
   align-items: flex-end;
   background: linear-gradient(160deg, var(--sky) 0%, var(--sky-deep) 100%);
   overflow: hidden;
+  /* The whole hero is the target: a click anywhere in it, or three
+     seconds of hover, starts the film. A call-to-action pinned under the
+     headline made it look like a landing page selling something. */
+  cursor: pointer;
 }
 
 /* THE MEDIA: the club's film on the front page, a photograph on
-   Impressionen, and nothing else differs between them.
+ * Impressionen, and nothing else differs between them.
  *
  * It is held at the LARGE height and pushed DOWN by --pan, which is
  * exactly how far the hero's own top edge has travelled up — so it
  * stands still in the window while the page scrolls over it. That is
  * what background-attachment: fixed does for a background, except this
- * also works for a <video> and works on iOS. */
+ * also works for a <video> and works on iOS, where `fixed` is ignored. */
 .hero .heromedia {
   position: absolute;
   top: 0;
@@ -235,11 +300,6 @@ a { color: var(--sky-deep); }
   transform: translateY(var(--pan));
 }
 
-/* NOTHING CHANGES WHEN IT STARTS. The still is the film's own first
-   frame at the same scale, so playing is the picture coming to life
-   rather than a layout event — no resize, no controls appearing, no
-   scrim lifting under the headline. */
-
 .scrim {
   position: absolute;
   inset: 0;
@@ -252,23 +312,7 @@ a { color: var(--sky-deep); }
     rgba(8, 22, 32, 0.90) 0%,
     rgba(8, 22, 32, 0.58) 45%,
     rgba(8, 22, 32, 0.30) 100%);
-  transition: opacity 260ms ease;
   pointer-events: none;
-}
-.hero.playing .scrim { opacity: 0; }
-
-/* NO PLAY BUTTON. The whole hero is the target: a click anywhere in it,
-   or three seconds of hover, starts the film. A call-to-action pinned
-   under the headline made the hero look like a landing page selling
-   something. */
-.hero { cursor: pointer; }
-
-/* MOTION IS A PREFERENCE. Somebody who has asked their system for
-   reduced motion should not have a video start under their cursor
-   because they paused there — the poster frame stays, which is a
-   perfectly good hero, and a click still starts it deliberately. */
-@media (prefers-reduced-motion: reduce) {
-  .scrim { transition: none; }
 }
 
 .heroinner {
@@ -293,10 +337,6 @@ a { color: var(--sky-deep); }
  * rectangle, and a colour that is not quite opaque, so the film shows
  * through the letterforms themselves. That is what puts type INTO a
  * picture. A panel covers the picture up and calls it integration.
- *
- * The 20ch measure went with it. It was forcing "RC-Modellflug in
- * Stutensee" to wrap into two lines inside a box that was already too
- * small for it; the line fits at 40px in a 1080px measure.
  */
 .hero h1 {
   font-family: var(--display);
@@ -326,6 +366,8 @@ a { color: var(--sky-deep); }
 /* ---- layout ---------------------------------------------------------- */
 
 main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
+
+main > .empty { margin-top: 40px; }
 
 .feed { max-width: 720px; margin: 0 auto; }
 
@@ -367,171 +409,9 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   overflow: hidden;
   margin-bottom: 28px;
   box-shadow: var(--shadow);
-  transition: box-shadow 200ms ease, transform 200ms ease;
+  transition: box-shadow 200ms ease;
 }
 .post:hover { box-shadow: var(--shadow-lift); }
-
-/* ---- the gallery ----------------------------------------------------- */
-/* A GALLERY ON THE PAGE, not a row that opens one somewhere else.
- *
- * "the posts on the mainpage are supposed to be in a gallery. not in a
- * flat bullshit display that opens a gallery on click."
- *
- * It went through two wrong shapes before that was said plainly: a
- * carousel showing exactly ONE picture at a time, and then a flat strip
- * of thumbnails whose only trick was opening a lightbox. What belongs
- * here is a gallery with its own arrows, pagination, keyboard and drag,
- * WHICH ALSO ZOOMS — and that is one component doing one job.
- *
- * SWIPER DOES IT, and it is a single package rather than a slider plus a
- * lightbox: two libraries for one job is two things to patch, two
- * stylesheets and two ideas of what a gallery is. It arrives through npm
- * and Vite bundles it into our own assets, exactly as the fonts are, so
- * nothing is fetched from anybody else.
- *
- * Everything below is only sizing and dress; the behaviour is Swiper's.
- * See PhotoGallery.tsx. */
-
-/* Swiper draws the gallery and does the zooming. This only tells it how
-   big the pictures are and dresses its controls to match the site. */
-.gal {
-  position: relative;
-  /* A quiet backing, so a picture that has not arrived yet is a dark
-     rectangle rather than a white flash. */
-  background: #0e1c27;
-  --swiper-navigation-color: #fff;
-  --swiper-navigation-size: 26px;
-  --swiper-pagination-color: #fff;
-  --swiper-pagination-bullet-inactive-color: #fff;
-  --swiper-pagination-bullet-inactive-opacity: 0.45;
-  --swiper-pagination-bottom: 10px;
-}
-
-/* THE ONE MEASUREMENT THAT MATTERS. A shared height, natural widths, and
-   slidesPerView: auto — so as many pictures as fit stand side by side,
-   and the same component fills a post card or the whole page without
-   being told which one it is in.
-
-   Bounded by the VIEWPORT as well as in pixels: a picture should never
-   be taller than the screen looking at it. */
-.gal .swiper-slide {
-  width: auto;
-  /* SEVEN HUNDRED AND SOMETHING. It was 460 on a post, which is what
-     made the picture small — the same height as Impressionen was always
-     what was asked for, on both pages. */
-  height: min(72vh, 720px);
-}
-
-/* THE OUT-OF-FOCUS BACKGROUND: the picture you are looking at, blurred
-   and darkened, filling everything the slides do not. With coverflow and
-   centred slides that is most of the frame, which is what stops the
-   gallery reading as pictures sliced off at the card's edges.
-
-   Inset past the edges so the blur has no visible border of its own —
-   a blurred box shows its boundary otherwise. */
-.galbg {
-  position: absolute;
-  inset: -40px;
-  z-index: 0;
-  background-size: cover;
-  background-position: center;
-  filter: blur(36px) brightness(0.42) saturate(125%);
-  transform: scale(1.05);
-  transition: background-image 240ms ease;
-  pointer-events: none;
-}
-
-/* The slides sit ON the backdrop rather than under it. */
-.gal .swiper-wrapper { position: relative; z-index: 1; }
-.gal .swiper-button-prev,
-.gal .swiper-button-next,
-.gal .swiper-pagination { z-index: 2; }
-
-@media (prefers-reduced-motion: reduce) {
-  .galbg { transition: none; }
-}
-
-/* Auto-width slides size themselves from the picture: fix the height and
-   let the width follow. max-width: none because Swiper's own rules
-   assume a full-width slide, which is the opposite of this. */
-.gal .swiper-slide img {
-  width: auto;
-  height: 100%;
-  max-width: none;
-  display: block;
-  border-radius: 8px;
-}
-
-/* ONE PICTURE, FILLING THE FRAME. On a post the slide is the whole card
-   width and the picture is contained inside it — so it fills the height
-   exactly if it is portrait, or the width exactly if it is landscape.
-   Either way it fills one dimension and nothing is cropped. */
-.gal.one .swiper-slide { width: 100%; }
-.gal.one .swiper-slide img {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  object-fit: contain;
-}
-
-/* ---- the full-screen view -------------------------------------------- */
-/* THE ZOOMED-IN NAVIGABLE LAYER. The inline gallery cannot be this: its
-   zoom happens inside a slide, and a slide on a post card is 307px wide,
-   so magnifying a 1707px poster there is reading it through a slot. Here
-   the slide IS the window, so the zoom has somewhere to go — and the
-   arrows, the keyboard and swiping all keep working while zoomed. */
-
-.galfull {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(6, 14, 20, 0.96);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  --swiper-navigation-color: #fff;
-  --swiper-navigation-size: 34px;
-  --swiper-pagination-color: #fff;
-}
-
-.galfullswiper { width: 100%; height: 100%; }
-.galfullswiper .swiper-slide {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-/* No overrides here: Swiper's own zoom-container rules are exactly right
-   for a full-width slide, which is what these are. */
-
-.galclose {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 210;
-  width: 46px;
-  height: 46px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  font-size: 20px;
-  cursor: pointer;
-}
-.galclose:hover { background: rgba(255, 255, 255, 0.26); }
-
-/* The arrows sit ON the pictures, so they have to be legible over
-   anything without shouting over it. */
-.gal .swiper-button-prev,
-.gal .swiper-button-next {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(12, 24, 33, 0.55);
-  backdrop-filter: blur(6px);
-}
-.gal .swiper-button-prev::after,
-.gal .swiper-button-next::after { font-weight: 700; }
 
 .post .body { padding: 22px 24px 22px; }
 /* The head sits ABOVE the pictures: a headline exists to be read before
@@ -546,11 +426,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   line-height: 1.15;
   text-wrap: balance;
 }
-.post .head .meta {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
+.post .head .meta { margin: 0; padding: 0; border: 0; }
 /* pre-wrap: captions arrive with the line breaks their author typed, and
    collapsing them turns a readable post into a wall. */
 .post .text { margin: 0; white-space: pre-wrap; color: var(--ink-soft); }
@@ -578,132 +454,173 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
   flex-wrap: wrap;
 }
 
-/* ---- Impressionen: the SAME gallery, at full width -------------------- */
-/* ONE GALLERY, TWO PLACES. The shepherd's instruction, after seeing the
- * front page and this page side by side: "please use the same gallery in
- * both places just with one being granted the full width."
+/* ---- the gallery ----------------------------------------------------- */
+/* A GALLERY ON THE PAGE, not a row that opens one somewhere else.
  *
- * What was here was a second implementation — a CSS multi-column wall of
- * raw tiles — and it did not look like the same website. It also
- * reproduced the thing that had already been rejected: three event
- * posters standing up as tall portrait slabs, which is the vertical
- * format the reference site was criticised for.
+ * "the posts on the mainpage are supposed to be in a gallery. not in a
+ * flat bullshit display that opens a gallery on click."
  *
- * So Impressionen renders <PhotoGallery>, exactly as a post does, and
- * the only difference is the measure it is given — which is why more
- * pictures stand side by side here without anything being told to.
- */
+ * It went through three wrong shapes before that was said plainly: a
+ * carousel showing exactly ONE picture at a time, a flat strip of
+ * thumbnails whose only trick was opening a lightbox, and a slider with
+ * a second library bolted on for the zoom. What belongs here is a
+ * gallery with its own arrows, pagination, keyboard and drag, WHICH ALSO
+ * ZOOMS — and that is one component doing one job, out of one package.
+ *
+ * Everything below is only sizing and dress; the behaviour is Swiper's.
+ * See PhotoGallery.tsx. */
 
-main.wide { max-width: 1600px; }
-
-.gallery { padding-top: 0; }
-/* The gallery starts below the hero rather than against it. */
-.gallery .hero { margin-bottom: 28px; }
-
-/* THE HERO BANNER. The club's own photograph, full window width, with
-   the page's heading sitting in it rather than above it. */
-.galhero {
+.gal {
   position: relative;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  /* TWICE AS HIGH TO START, SHRINKING AS YOU SCROLL. --grow runs from 1
-     at the top of the page to 0 once you have scrolled past it; the
-     JavaScript that sets it is in Gallery.tsx and does nothing else.
-     Stated here rather than there because this is the arithmetic — the
-     script only supplies the number. */
-  --hero-small: min(46vh, 420px);
-  --hero-large: min(92vh, 840px);
-  --grow: 1;
-  height: calc(
-    var(--hero-small) + (var(--hero-large) - var(--hero-small)) * var(--grow)
-  );
-  margin-bottom: 28px;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  background-color: #0e1c27;
-
-  /* FIXED AGAINST SCROLLING: the picture stays where it is and the page
-     travels over it. This is why it is a background rather than an <img>
-     — background-attachment pins it without JavaScript running on every
-     scroll event.
-
-     ANCHORED TO THE TOP, which is the whole point of the crop: whatever
-     does not fit comes off the BOTTOM, so the faces stay in frame and it
-     is the grass that goes.
-
-     iOS Safari ignores `fixed` and scrolls it normally. That is a
-     graceful loss — the picture is still right, it just travels — and
-     the alternative is a scroll handler moving it by hand on the one
-     class of device where that costs the most battery. */
-  background-image: url("/impressionen-hero.jpg");
-  background-size: cover;
-  background-position: center top;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  /* A quiet backing, so a picture that has not arrived yet is a dark
+     rectangle rather than a white flash. */
+  background: #0e1c27;
+  --swiper-navigation-color: #fff;
+  --swiper-navigation-size: 26px;
+  --swiper-pagination-color: #fff;
+  --swiper-pagination-bullet-inactive-color: #fff;
+  --swiper-pagination-bullet-inactive-opacity: 0.45;
+  --swiper-pagination-bottom: 10px;
 }
-/* Contrast for the heading, from the bottom, so the top of the picture
-   stays as it is. */
-.galhero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to top,
-    rgba(8, 22, 32, 0.85) 0%,
-    rgba(8, 22, 32, 0.35) 45%,
-    rgba(8, 22, 32, 0) 100%);
+
+/* THE ONE MEASUREMENT THAT MATTERS, and it is the SAME on both pages: a
+   shared height, natural widths, and slidesPerView auto — so as many
+   pictures as fit stand side by side, and the same component fills a
+   post card or the whole window without being told which it is in.
+
+   SEVEN HUNDRED AND SOMETHING, as instructed. Bounded by the VIEWPORT as
+   well as in pixels: a picture should never be taller than the screen
+   looking at it.
+
+   GROWTH IS HORIZONTAL ONLY. This height does not change with the number
+   of pictures, the shape of them, or the page. */
+.gal .swiper-slide {
+  width: auto;
+  height: min(72vh, 720px);
 }
-.galheroin {
-  position: relative;
-  z-index: 1;
+
+/* Auto-width slides size themselves from the picture: fix the height and
+   let the width follow. max-width: none because Swiper's own rules
+   assume a full-width slide, which is the opposite of this. */
+.gal .swiper-slide img {
+  width: auto;
+  height: 100%;
+  max-width: none;
+  display: block;
+  border-radius: 8px;
+}
+
+/* ONE PICTURE, FILLING THE FRAME. On a post the slide is the whole card
+   width and the picture is contained inside it — so it fills the height
+   exactly if it is portrait, or the width exactly if it is landscape.
+   Either way it fills one dimension and NOTHING IS CROPPED: for these
+   posts the poster IS the content, and a crop deletes the date and the
+   venue. */
+.gal.one .swiper-slide { width: 100%; }
+.gal.one .swiper-slide img {
   width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 24px 26px;
-}
-.gallery h1 {
-  font-family: var(--display);
-  font-size: clamp(30px, 4.4vw, 46px);
-  font-weight: 600;
-  letter-spacing: -0.032em;
-  margin: 0;
-  /* The same treatment as the front page's headline: slightly
-     transparent letters with the shadow on the glyphs, so the type sits
-     in the picture instead of on top of it. */
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow:
-    0 1px 2px rgba(6, 16, 24, 0.65),
-    0 6px 28px rgba(6, 16, 24, 0.55);
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
 }
 
-/* TALLER, BECAUSE THERE IS MORE ROOM. Same component, same tiles, same
-   viewer: this page gets 1600px of measure and the pictures take most of
-   the screen's height rather than most of a card's. That is the whole of
-   the difference between the two places. */
-/* FULL PAGE WIDTH, AND THAT MEANS THE WINDOW. It was capped at the
-   1600px measure, which on a wide screen left the gallery floating in
-   the middle with dead space beside it. This breaks it out of the
-   centred column to the full viewport: 100vw, pulled back by however far
-   the column is inset. */
-.gallery .gal {
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  border-radius: 0;
+/* THE OUT-OF-FOCUS BACKGROUND: the picture you are looking at, blurred
+   and darkened, filling everything the slides do not. With coverflow and
+   centred slides that is most of the frame, which is what stops the
+   gallery reading as pictures sliced off at the card's edges.
+
+   Inset past the edges so the blur has no visible border of its own —
+   a blurred box shows its boundary otherwise. */
+.galbg {
+  position: absolute;
+  inset: -40px;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(36px) brightness(0.42) saturate(125%);
+  transform: scale(1.05);
+  transition: background-image 240ms ease;
+  pointer-events: none;
 }
-.gallery .gal .swiper-slide { height: min(72vh, 720px); }
 
-/* NO .lightbox OF OUR OWN ANY MORE. There was a hand-written overlay
-   here — one <img> in a fixed box, with no pan, no pinch and no way to
-   reach the next picture without closing it first. The gallery does its
-   own zooming now, in place, so there is nothing left for an overlay to
-   be for. */
+/* The slides sit ON the backdrop rather than under it. */
+.gal .swiper-wrapper { position: relative; z-index: 1; }
+.gal .swiper-button-prev,
+.gal .swiper-button-next,
+.gal .swiper-pagination { z-index: 2; }
 
-/* NO PHONE OVERRIDE, DELIBERATELY. There was one, and it shrank the
-   pictures to 150px — which was never asked for and turned a club's
-   photographs into stamps. The heights above are already stated against
-   the VIEWPORT, so a phone gets a picture that fills most of its screen
-   and the row still runs sideways. Nothing left to override. */
+/* The arrows sit ON the pictures, so they have to be legible over
+   anything without shouting over it. */
+.gal .swiper-button-prev,
+.gal .swiper-button-next {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(12, 24, 33, 0.55);
+  backdrop-filter: blur(6px);
+}
+.gal .swiper-button-prev::after,
+.gal .swiper-button-next::after { font-weight: 700; }
+
+/* ---- Impressionen: the SAME gallery, the whole window ---------------- */
+/* ONE GALLERY, TWO PLACES. "please use the same gallery in both places
+ * just with one being granted the full width."
+ *
+ * The full width is granted by the MARKUP: this section is a top-level
+ * element, so it already spans the page and has nothing to break out of.
+ * It used to be `width: 100vw` inside a centred column, which is where
+ * the horizontal scrollbar came from. */
+
+.gallery { margin-top: 28px; }
+.gallery .gal { border-radius: 0; }
+
+/* ---- the full-screen view -------------------------------------------- */
+/* THE ZOOMED-IN NAVIGABLE LAYER, and it does not stop being required
+ * because the page itself is also a gallery. The inline one cannot be
+ * this: Swiper zooms INSIDE a slide, and a slide on a post card measures
+ * 432px, so magnifying a 1707px poster there is reading it through a
+ * slot. Here the slide IS the window, so the zoom has somewhere to go —
+ * and the arrows, the keyboard and swiping all keep working while
+ * zoomed. */
+
+.galfull {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(6, 14, 20, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  --swiper-navigation-color: #fff;
+  --swiper-navigation-size: 34px;
+  --swiper-pagination-color: #fff;
+}
+
+.galfullswiper { width: 100%; height: 100%; }
+.galfullswiper .swiper-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+/* No overrides for the zoom container: Swiper's own rules are exactly
+   right for a full-width slide, which is what these are. */
+
+.galclose {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 210;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+.galclose:hover { background: rgba(255, 255, 255, 0.26); }
 
 /* ---- static pages ---------------------------------------------------- */
 
@@ -743,7 +660,8 @@ main.wide { max-width: 1600px; }
 /* The Datenschutzerklärung nests FOUR heading levels. Without these, h3
    and h4 fall back to browser defaults and an h3 renders LARGER than the
    h2 above it — which destroys the only thing holding a long legal
-   document together. */
+   document together. That document is used verbatim, so the styling is
+   the only lever there is. */
 .prose h3 { font-size: 19px; margin: 28px 0 6px; }
 .prose h4 {
   font-size: 17px;
@@ -761,7 +679,7 @@ main.wide { max-width: 1600px; }
 /* THE MANDATORY ALL-CAPS PASSAGES (Art. 21 DSGVO) are why the measure is
    bounded. They cannot be styled on their own — CSS cannot select an
    element by the text inside it, and wrapping them would mean changing a
-   document that is used verbatim. 65 characters is what typography has
+   document that is used verbatim. 66 characters is what typography has
    settled on for continuous reading; without it a wall of capitals runs
    the full width and the eye loses its place returning. */
 .prose p, .prose li { max-width: 66ch; }
@@ -776,7 +694,154 @@ main.wide { max-width: 1600px; }
 .prose blockquote p { margin: 0 0 8px; }
 .prose blockquote p:last-child { margin: 0; }
 
-/* ---- footer ---------------------------------------------------------- */
+/* ---- the members area ------------------------------------------------ */
+/* Sign in, sign up, and both at once — a member may arrive with a
+   password, with Google, or with both, and must not end up with two
+   accounts for it. Deliberately plain: this is a form, and a form's job
+   is to be obvious. */
+
+.members {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+
+.memberbox {
+  max-width: 440px;
+  margin: 0 auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 32px 32px 36px;
+  box-shadow: var(--shadow);
+}
+
+.memberbox h1 {
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin: 0 0 20px;
+}
+
+.memberwho {
+  margin: -12px 0 18px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.memberwait {
+  background: #fff8ec;
+  border-left: 4px solid var(--sun);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 16px;
+  color: var(--ink-soft);
+}
+
+.membertabs { display: flex; gap: 8px; margin-bottom: 22px; }
+.membertabs button {
+  flex: 1;
+  /* 44px, like every other control here: a thumb, not a pointer. */
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--wash);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* The STATE is what is styled, not a second class — so what a screen
+   reader announces and what the eye sees cannot come apart. */
+.membertabs button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--sky);
+  box-shadow: inset 0 -2px 0 var(--sky);
+}
+
+.memberbox label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.memberbox input {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 16.5px;
+  color: var(--ink);
+}
+
+.membererror {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fdecec;
+  border-left: 4px solid #c0392b;
+  color: #7d241a;
+  font-size: 15.5px;
+}
+
+.memberdo,
+.membergoogle,
+.memberout {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.memberdo {
+  border: 0;
+  background: var(--sky-deep);
+  color: #fff;
+}
+.memberdo:hover { background: var(--sky); }
+.memberdo:disabled { background: var(--muted); cursor: default; }
+
+.memberor {
+  margin: 18px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.membergoogle {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 44px;
+}
+.membergoogle:hover { border-color: var(--sky); }
+
+.memberout {
+  margin-top: 24px;
+  border: 1px solid var(--line);
+  background: var(--wash);
+  color: var(--ink-soft);
+}
+
+.membernote {
+  margin: 22px 0 0;
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
 
 /* ---- the dock: a footer that is always there ------------------------- */
 /* Slim and pinned, opening out at the end of the page.
@@ -805,12 +870,6 @@ main.wide { max-width: 1600px; }
   padding: 26px 24px 30px;
   background: var(--ink);
 }
-
-/* THE PAGE MUST NOT END UNDERNEATH IT. Content is padded by the
-   collapsed height, so the last line of a page is readable rather than
-   sitting behind a bar - and the dock only overlaps itself when it
-   expands, at which point you have reached the end anyway. */
-body { padding-bottom: 46px; }
 
 .footinner {
   max-width: 1080px;
@@ -843,17 +902,33 @@ body { padding-bottom: 46px; }
 }
 .dock.open p { font-size: 14.5px; color: rgba(255, 255, 255, 0.72); }
 
+/* ---- motion ---------------------------------------------------------- */
+/* EVERY ANIMATION HERE HAS AN ANSWER FOR SOMEBODY WHO HAS ASKED THEIR
+   SYSTEM FOR LESS OF IT. The two that move with the scroll — the hero
+   and the backdrop — stand still, and that is decided in their own
+   components, because it is their JavaScript that would otherwise keep
+   writing a moving number. */
 @media (prefers-reduced-motion: reduce) {
-  .dock, .dock a, .dock p { transition: none; }
+  .dock, .dock a, .dock p,
+  .galbg, .post,
+  .top nav a { transition: none; }
 }
+
+/* ---- small screens --------------------------------------------------- */
+/* NO GALLERY OVERRIDE, DELIBERATELY. There was one, and it shrank the
+   pictures to 150px — which was never asked for and turned a club's
+   photographs into stamps. The heights above are already stated against
+   the VIEWPORT, so a phone gets a picture that fills most of its screen
+   and the row still runs sideways. */
 
 @media (max-width: 780px) {
   :root { font-size: 17px; }
   main { padding: 0 16px 48px; }
-  .heroinner { padding: 52px 16px 32px; }
-  .hero { min-height: 300px; }
+  .members { padding: 32px 16px 56px; }
+  .memberbox { padding: 24px 20px 28px; }
+  .heroinner { padding: 0 16px 28px; }
   .prose { padding: 26px 20px 30px; border-radius: 14px; }
   .post .body { padding: 18px 18px; }
+  .post .head { padding: 18px 18px 14px; }
   .topinner { padding: 12px 16px; }
-  footer { padding: 32px 16px 40px; }
 }

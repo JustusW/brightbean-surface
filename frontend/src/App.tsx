@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import {
+  BrowserRouter,
   Link,
   Route,
-  BrowserRouter,
   Routes,
   useParams,
 } from "react-router-dom";
 import { marked } from "marked";
-import Gallery from "./Gallery";
+import Backdrop from "./Backdrop";
 import Hero from "./Hero";
+import Members from "./Members";
 import PhotoGallery from "./PhotoGallery";
-import { api, type FeedItem, type PageContent, type Site } from "./api";
+import { api } from "./api";
+import type { FeedItem, FeedMedia, PageContent, Site } from "./api";
 
 /** THE DATE, PINNED. `toLocaleDateString()` follows whatever locale the
  *  visitor's browser reports, and a German club's page rendering
@@ -94,8 +96,9 @@ function Post({ item }: { item: FeedItem }) {
         </div>
       )}
 
-      {/* ONE picture at a time here. A post is about its own photograph,
-          and three abreast in a 704px card makes all three small. */}
+      {/* ONE picture at a time here, filling the card in at least one
+          dimension. A post is about ITS photograph, and three abreast in
+          a 704px card makes all three small. */}
       <PhotoGallery media={item.media} perView={1} />
 
       <div className="body">
@@ -126,6 +129,15 @@ function Post({ item }: { item: FeedItem }) {
   );
 }
 
+/** The front page: the film, then what the club has published.
+ *
+ *  NOTE THE SHAPE — the hero is a SIBLING of <main>, not a child of it.
+ *  That is the whole fix for the horizontal scrollbars: a top-level
+ *  element is the width of the page for nothing, where the previous
+ *  version reached out of the centred column with `width: 100vw`, which
+ *  includes the vertical scrollbar and is therefore always about fifteen
+ *  pixels too wide. It is also why this hero and Impressionen's now
+ *  behave identically: neither depends on the box it happens to sit in. */
 function Feed({ site }: { site: Site | null }) {
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -176,6 +188,62 @@ function Feed({ site }: { site: Site | null }) {
   );
 }
 
+/** Impressionen — every picture the club has published.
+ *
+ *  THE SAME PARTS AS THE FRONT PAGE, and that is the point: the same
+ *  <Hero> and the same <PhotoGallery>, given a different picture and the
+ *  whole window instead of a card. There were briefly two of each,
+ *  drifting into different sizes and different behaviour, which is how a
+ *  site stops looking like one site.
+ *
+ *  Both of them are top-level, for the reason written above Feed. The
+ *  only thing that differs from a post is `perView`, which is "auto"
+ *  here — so as many pictures stand side by side as fit. */
+function GalleryPage({ title }: { title: string }) {
+  const [images, setImages] = useState<FeedMedia[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    api
+      .gallery()
+      .then((r) => setImages(r.images))
+      .catch(() => setFailed(true));
+  }, []);
+
+  return (
+    <>
+      {/* The club's own photograph — members watching something fly,
+          which is what this page is about — cut down to thirty pixels
+          above the first hat so the frame opens on the people rather
+          than on empty sky. Vendored into our own assets rather than
+          linked from where it was found. */}
+      <Hero title={title} image="/impressionen-hero.jpg" />
+
+      {/* THREE STATES, AND THEY SAY DIFFERENT THINGS. */}
+      {(failed || images === null || images.length === 0) && (
+        <main>
+          {failed && (
+            <p className="empty">
+              Die Bilder lassen sich gerade nicht laden. Bitte versuchen Sie
+              es später noch einmal.
+            </p>
+          )}
+          {!failed && images === null && <p className="empty">Lädt…</p>}
+          {!failed && images !== null && images.length === 0 && (
+            <p className="empty">Hier erscheinen bald unsere Bilder.</p>
+          )}
+        </main>
+      )}
+
+      {images && images.length > 0 && (
+        <section className="gallery">
+          <PhotoGallery media={images} />
+        </section>
+      )}
+    </>
+  );
+}
+
 function StaticPage({ site }: { site: Site | null }) {
   const { slug = "" } = useParams();
   const [page, setPage] = useState<PageContent | null>(null);
@@ -204,11 +272,7 @@ function StaticPage({ site }: { site: Site | null }) {
   }, [slug, isGallery]);
 
   if (isGallery) {
-    return (
-      <main className="wide">
-        <Gallery title={entry?.title ?? "Impressionen"} />
-      </main>
-    );
+    return <GalleryPage title={entry?.title ?? "Impressionen"} />;
   }
 
   return (
@@ -248,6 +312,10 @@ function Shell({ site }: { site: Site | null }) {
   const [open, setOpen] = useState(false);
   return (
     <>
+      {/* The airfield, behind everything, panning as you scroll. Fixed
+          and pointer-events: none, so it is scenery and nothing else. */}
+      <Backdrop />
+
       <header className="top">
         <div className="topinner">
           <Link className="brand" to="/" onClick={() => setOpen(false)}>
@@ -280,6 +348,11 @@ function Shell({ site }: { site: Site | null }) {
 
       <Routes>
         <Route path="/" element={<Feed site={site} />} />
+        {/* NOT IN THE NAVIGATION, and that is not an oversight: the
+            navigation is built from /api/site, so a page appears there
+            when the configuration says so. The members area is reachable
+            by address until the club decides to link it. */}
+        <Route path="/mitglieder" element={<Members />} />
         <Route path="/:slug" element={<StaticPage site={site} />} />
       </Routes>
 
@@ -305,6 +378,10 @@ function Shell({ site }: { site: Site | null }) {
 function Dock({ site }: { site: Site | null }) {
   const [atEnd, setAtEnd] = useState(false);
 
+  // NO DEPENDENCY ARRAY, DELIBERATELY. The page's height changes as the
+  // feed's pictures arrive, and re-running this on every render is what
+  // makes the check notice. Adding and removing two window listeners is
+  // cheap; being wrong about where the bottom is, is not.
   useEffect(() => {
     const check = () => {
       const doc = document.documentElement;

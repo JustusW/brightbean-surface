@@ -19,6 +19,17 @@ import { useEffect, useRef } from "react";
  *
  *  THE MEDIA CAN BE EITHER, and that is the only thing that varies: the
  *  club's own film on the front page, a photograph on Impressionen.
+ *
+ *  IT IS RENDERED OUTSIDE <main>, ALWAYS. That is not a detail of taste:
+ *  the previous version reached full width with `width: 100vw` and a
+ *  negative margin, and 100vw INCLUDES the vertical scrollbar — so the
+ *  hero was some fifteen pixels wider than the page and put a horizontal
+ *  scrollbar on the whole site. Worse, `calc(50% - 50vw)` resolves
+ *  against whatever box it happens to sit in, so nested inside the
+ *  Impressionen column it behaved differently from the front page's,
+ *  which is how the same component came to look like two. A top-level
+ *  element is full width for nothing, on both pages, with no arithmetic
+ *  to get wrong.
  */
 
 /** How far you scroll before it has finished shrinking. Long enough to be
@@ -45,7 +56,10 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
    *  keeps the arithmetic:
    *
    *    --grow  1 at the top of the page, 0 once you have scrolled past.
-   *            The height is interpolated from it.
+   *            The height is interpolated from it, and because the large
+   *            height is stated as exactly twice the small one, "twice as
+   *            high at the top" is a property of the stylesheet rather
+   *            than of a number somebody typed here.
    *    --pan   how far to push the media DOWN. The hero's top edge is
    *            travelling up by exactly scrollY, so pushing the media
    *            down by the same amount leaves it standing still in the
@@ -76,10 +90,7 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
       el.style.setProperty("--grow", grow.toFixed(3));
       // Only while the hero is still on screen; past that it is clipped
       // away and there is nothing to hold still.
-      el.style.setProperty(
-        "--pan",
-        `${Math.min(y, el.offsetHeight)}px`,
-      );
+      el.style.setProperty("--pan", `${Math.min(y, el.offsetHeight)}px`);
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(apply);
@@ -131,6 +142,10 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
           className="heromedia"
           src={video}
           poster={poster}
+          /* preload="auto" on a 15.7 MB file means the network never goes
+             idle on this page. That is deliberate — the film should be
+             ready when somebody clicks — but it is also why any Playwright
+             probe here must wait for "load" and never "networkidle". */
           preload="auto"
           muted
           loop
