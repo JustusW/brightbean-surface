@@ -46,6 +46,27 @@ COPY --from=frontend /build/dist ./static
 # should be a file change and a restart, not a rebuild and a redeploy.
 
 USER surface
+
+# WHERE libpq LOOKS FOR A CLIENT CERTIFICATE.
+#
+# With TLS on, libpq tries $HOME/.postgresql/postgresql.crt before every
+# connection. There is no client certificate here - the server is
+# authenticated by password - and a MISSING file is skipped happily. An
+# UNREADABLE one is fatal:
+#
+#   connection to server at "78.47.199.88", port 5432 failed: could not
+#   open certificate file "/home/surface/.postgresql/postgresql.crt":
+#   Permission denied
+#
+# which is what this container did, under a rootless daemon where the
+# home directory's ownership does not survive the uid mapping the way
+# the image intended. Pointing the lookup at /tmp makes it miss cleanly
+# rather than being refused, and changes nothing about how the SERVER is
+# verified - sslmode is still require, and the connection is still
+# encrypted.
+ENV PGSSLCERT=/tmp/postgresql.crt \
+    PGSSLKEY=/tmp/postgresql.key
+
 EXPOSE 8000
 
 # --proxy-headers because nginx terminates TLS and the application has to
