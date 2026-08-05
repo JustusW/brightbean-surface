@@ -325,159 +325,58 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
 }
 .post:hover { box-shadow: var(--shadow-lift); }
 
-/* ---- the carousel ---------------------------------------------------- */
-/* THE SWIPING IS CSS. scroll-snap-type on the track means a touchscreen,
-   a trackpad, a wheel and the arrow keys all work before any JavaScript
-   runs; the buttons and dots are added on top of something that already
-   works rather than being the only way through.
+/* ---- the pictures ---------------------------------------------------- */
+/* A ROW THAT WRAPS, SHOWING AS MANY AS FIT.
  *
- * NOTHING IS CROPPED. The first version forced 4:3 with object-fit:
- * cover and sliced the top and bottom off event posters — and for these
- * posts the poster IS the content, so that was not a styling choice, it
- * was deleting the date and the venue. Each slide shows the whole image
- * over a blurred, darkened copy of itself, which fills the frame without
- * inventing a shape the picture does not have. */
+ * "the display should show as many images side by side as are possible."
+ * What was here was a carousel showing exactly ONE at a time, so seeing
+ * three photographs cost three clicks and forty cost forty.
+ *
+ * FIXED HEIGHT, NATURAL WIDTH, AND NOTHING CROPPED. Every tile is the
+ * same height and takes whatever width its own picture has — the browser
+ * derives that from the image, which is the point: Brightbean records 0
+ * for the width and height of these assets, so there are no dimensions
+ * to lay out from, and any scheme needing them in advance is out.
+ *
+ * Rows therefore come out slightly ragged at the right edge. The usual
+ * fix is flex-grow, which stretches the last row and crops to hide the
+ * stretch — and cropping an event poster deletes the date and the venue,
+ * which this page has already been caught doing once.
+ *
+ * THE ZOOMING IS NOT OURS. PhotoSwipe does the enlarging, the pinch, the
+ * panning and the stepping between pictures WHILE zoomed — see
+ * PhotoGrid.tsx. It arrives through npm and is bundled into our own
+ * assets, so nothing is fetched from anybody else. */
 
-.carousel { position: relative; background: #0e1c27; }
-
-.track {
+.pics {
   display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
-  /* The scrollbar is chrome on a picture. The arrows and dots say where
-     you are; a grey bar across the bottom of a photograph does not. */
-  scrollbar-width: none;
-}
-.track::-webkit-scrollbar { display: none; }
-/* The focus ring belongs on the track — it is the focusable thing — but
-   inset, so it is not clipped by the card's rounded corner. */
-.track:focus-visible { outline-offset: -3px; }
-
-.slide {
-  position: relative;
-  flex: 0 0 100%;
-  scroll-snap-align: center;
-  /* 16:10. The frame was 4:5 — portrait — on the reasoning that posters
-     are the commonest thing posted, and it made every card a tall
-     letterbox that pushed the caption off the screen. A club's page is
-     mostly aeroplanes against sky, which is a landscape subject; the
-     posters still show whole, with more backdrop at the sides, which is
-     the cheaper compromise of the two. */
-  aspect-ratio: 16 / 10;
-  overflow: hidden;
-}
-
-.slidebg {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  filter: blur(28px) brightness(0.55) saturate(120%);
-  /* Scaled past the edges so the blur has no visible border. */
-  transform: scale(1.2);
-}
-
-/* THE PICTURE IS A BUTTON, so it can be enlarged from a keyboard as
-   well as a mouse. It fills the slide exactly, so nothing about the
-   layout changes — it is the same rectangle, now operable. */
-.zoom {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: zoom-in;
-}
-
-.slide img {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* Prev / next. Deliberately restrained: they sit ON the picture, so they
-   have to be legible over anything without shouting over it. */
-.cbtn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(12, 24, 33, 0.55);
-  backdrop-filter: blur(6px);
-  color: #fff;
-  font-size: 26px;
-  line-height: 1;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  transition: background 140ms ease, opacity 140ms ease;
-}
-.cbtn:hover { background: rgba(12, 24, 33, 0.78); }
-.cbtn.prev { left: 12px; }
-.cbtn.next { right: 12px; }
-/* Disabled rather than hidden at the ends: a control that vanishes moves
-   the other one, and the reader loses the target they were aiming at. */
-.cbtn:disabled { opacity: 0.25; cursor: default; }
-
-.dots {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 12px;
-  display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
-}
-.dot {
-  position: relative;
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
-  cursor: pointer;
-  transition: background 140ms ease, transform 140ms ease;
-}
-.dot.on { background: #fff; transform: scale(1.35); }
-/* THE DOT IS 8px AND A FINGER IS NOT. The visible dot stays small; the
-   thing you can hit is 24px, via a transparent pseudo-element. Making
-   the dot itself bigger would be uglier and no more usable. */
-.dot::before {
-  content: "";
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  margin: -8px 0 0 -8px;
+  padding: 0 8px 8px;
 }
 
-.count {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: rgba(12, 24, 33, 0.55);
-  backdrop-filter: blur(6px);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.pic {
+  display: block;
+  flex: 0 0 auto;
+  height: 220px;
+  border-radius: 10px;
+  overflow: hidden;
+  /* The same dark backing the carousel used, so a picture that has not
+     arrived yet is a quiet rectangle rather than a white flash. */
+  background: #0e1c27;
+  cursor: zoom-in;
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
+.pic:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.pic img { height: 100%; width: auto; display: block; }
 
-/* MOTION IS A PREFERENCE, NOT A DEFAULT. Somebody who has asked their
-   system for reduced motion should not be given smooth-scrolling
-   carousels; the jump is instant instead, and everything still works. */
+/* A LONE PICTURE GETS THE WHOLE CARD. One 220px tile in a 720px card
+   looks like the thumbnail of something more interesting elsewhere —
+   and most posts here have exactly one picture. */
+.pics:has(> :only-child) .pic { height: auto; width: 100%; }
+.pics:has(> :only-child) .pic img { width: 100%; height: auto; }
 @media (prefers-reduced-motion: reduce) {
-  .track { scroll-behavior: auto; }
-  .dot, .cbtn { transition: none; }
+  .pic { transition: none; }
 }
 
 .post .body { padding: 22px 24px 22px; }
@@ -536,7 +435,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
  * posters standing up as tall portrait slabs, which is the vertical
  * format the reference site was criticised for.
  *
- * So Impressionen renders <Carousel>, exactly as a post does, and the
+ * So Impressionen renders <PhotoGrid>, exactly as a post does, and the
  * only difference is the measure it is given.
  */
 
@@ -551,60 +450,25 @@ main.wide { max-width: 1600px; }
   margin: 0 0 26px;
 }
 
-/* The same rounded, shadowed frame a post gives its carousel, so the two
-   are the same object in two contexts rather than two objects. */
-.gallery .carousel {
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
-}
+/* TALLER, BECAUSE THERE IS MORE ROOM. Same component, same tiles, same
+   viewer: this page gets 1600px and 300px-high pictures instead of 220,
+   so more stand side by side and each is bigger. That is the whole of
+   the difference between the two places. */
+.gallery .pics { padding: 0; gap: 10px; }
+.gallery .pic { height: 300px; }
 
-/* HEIGHT RATHER THAN RATIO, AND ONLY HERE. 16:10 across a 1600px measure
-   is a thousand pixels tall — you would scroll to see one picture. Bound
-   it to the viewport instead; the image is object-fit: contain over its
-   own blurred backdrop either way, so nothing is cropped and the frame
-   still fills. */
-.gallery .slide {
-  aspect-ratio: auto;
-  height: min(72vh, 760px);
-}
-
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(6, 14, 20, 0.94);
-  display: grid;
-  place-items: center;
-  padding: 28px;
-  cursor: zoom-out;
-}
-.lightbox img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: 8px;
-}
-.lightbox .close {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  font-size: 20px;
-  cursor: pointer;
-}
-.lightbox .close:hover { background: rgba(255, 255, 255, 0.26); }
+/* NO .lightbox OF OUR OWN ANY MORE. There was a hand-written overlay
+   here — one <img> in a fixed box, with no pan, no pinch and no way to
+   reach the next picture without closing it first. PhotoSwipe replaced
+   it and brings its own stylesheet, so keeping ours would be two
+   viewers' worth of CSS with one viewer left to use it. */
 
 @media (max-width: 780px) {
-  /* On a phone the full-width gallery is the same width as anything
-     else, so the viewport-height frame becomes a tall letterbox with
-     slivers of picture in it. Back to the post's own ratio. */
-  .gallery .slide { aspect-ratio: 16 / 10; height: auto; }
+  /* ONE PICTURE PER ROW ON A PHONE. A fixed-height row of landscape
+     photographs on a 390px screen shows one and a sliver of the next,
+     which reads as broken rather than as an invitation to scroll. */
+  .pic, .gallery .pic { height: auto; width: 100%; }
+  .pic img, .gallery .pic img { width: 100%; height: auto; }
 }
 
 /* ---- static pages ---------------------------------------------------- */

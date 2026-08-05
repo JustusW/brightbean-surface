@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Carousel from "./Carousel";
+import PhotoGrid from "./PhotoGrid";
 import { api, type FeedMedia } from "./api";
 
 /** Impressionen — every picture the club has published.
@@ -10,16 +10,15 @@ import { api, type FeedMedia } from "./api";
  *  width."
  *
  *  What was here before was a second implementation — a CSS multi-column
- *  wall of raw tiles — and it did not look like the same website. Worse,
- *  it reproduced the thing that was thrown out in the first place: three
- *  event posters standing up as tall portrait slabs, which is exactly the
- *  vertical format the reference site was criticised for.
+ *  wall of raw tiles — and it did not look like the same website. It also
+ *  reproduced the thing that had already been rejected: three event
+ *  posters standing up as tall portrait slabs, which is the vertical
+ *  format the reference site was criticised for.
  *
  *  So this file no longer draws anything. It fetches, handles the three
- *  states, and hands the pictures to Carousel. The width comes from
- *  <main className="wide"> in App.tsx, and the slide is given a viewport
- *  height there rather than a 16:10 box — at 1600px wide that ratio would
- *  be a thousand pixels tall and you would scroll to see one picture.
+ *  states, and hands the pictures to PhotoGrid. The width comes from
+ *  <main className="wide"> in App.tsx, and the pictures are simply taller
+ *  there — same component, more room.
  */
 export default function Gallery({ title }: { title: string }) {
   const [images, setImages] = useState<FeedMedia[] | null>(null);
@@ -51,7 +50,7 @@ export default function Gallery({ title }: { title: string }) {
         <p className="empty">Hier erscheinen bald unsere Bilder.</p>
       )}
 
-      {images && images.length > 0 && <Carousel media={images} />}
+      {images && images.length > 0 && <PhotoGrid media={images} />}
     </section>
   );
 }
