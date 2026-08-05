@@ -1,93 +1,144 @@
 /* The club's website.
  *
+ * REBUILT AFTER LOOKING AT IT. The first version was written from a
+ * description of the content rather than from the rendered page, and it
+ * showed: three images in a two-column grid left a large empty cell, and
+ * event posters were being cropped to 4:3 by object-fit: cover — which
+ * destroyed the actual information, because for these posts the content
+ * IS the image.
+ *
  * READ ON A PHONE, AT A FLYING FIELD, IN SUNLIGHT, BY PEOPLE WHOSE EYES
- * ARE NOT WHAT THEY WERE. That decides most of what is below: a base
- * size of 18px rather than 16, real contrast rather than grey-on-grey,
- * and tap targets that a thumb can hit. None of it should be quietly
- * shrunk later to fit more in.
+ * ARE NOT WHAT THEY WERE. That decides the base size, the contrast and
+ * the tap targets. None of it should be quietly shrunk to fit more in.
  *
  * No framework. Eight pages and a feed do not need one, and every
- * kilobyte here is downloaded over a rural mobile connection.
+ * kilobyte is downloaded over a rural mobile connection.
  */
 
 :root {
-  /* Sky and airfield, not corporate blue. */
-  --ink: #16202b;
-  --muted: #5c6b7a;
-  --line: #dde3e9;
+  /* Sky and airfield. A club that flies things gets blue and sunlight,
+     not corporate grey - but muted enough to sit behind photographs
+     rather than fight them. */
+  --ink: #12212e;
+  --ink-soft: #3d5162;
+  --muted: #6b7f90;
+  --line: #e2e8ed;
   --paper: #ffffff;
-  --wash: #f4f7fa;
-  --sky: #1d6fa5;
-  --sky-dark: #14507a;
+  --wash: #f4f7f9;
+  --sky: #2b7fb8;
+  --sky-deep: #185a80;
+  --sun: #e8a33d;
+
+  --shadow: 0 1px 2px rgba(18, 33, 46, 0.04),
+            0 8px 24px rgba(18, 33, 46, 0.06);
+  --shadow-lift: 0 2px 4px rgba(18, 33, 46, 0.06),
+                 0 16px 40px rgba(18, 33, 46, 0.10);
 
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   font-size: 18px;
   color: var(--ink);
   background: var(--paper);
+  -webkit-font-smoothing: antialiased;
 }
 
 * { box-sizing: border-box; }
 
-body { margin: 0; line-height: 1.6; }
+body { margin: 0; line-height: 1.6; background: var(--wash); }
 
 img { max-width: 100%; height: auto; display: block; }
 
-a { color: var(--sky-dark); }
+a { color: var(--sky-deep); }
 
-/* VISIBLE FOCUS, EVERYWHERE. Removing the outline is the single most
-   common way a site becomes unusable from a keyboard, and it is done
-   for looks. This one is deliberate and obvious. */
+/* VISIBLE FOCUS, EVERYWHERE. Removing the outline is the commonest way a
+   site becomes unusable from a keyboard, and it is done for looks. */
 :focus-visible {
   outline: 3px solid var(--sky);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 /* ---- header ---------------------------------------------------------- */
+/* Full-bleed bar, but its CONTENTS share the same measure as the page
+   below it. The first version let the nav float to the far right of a
+   1280px window while the content sat centred at 760 - so the two read
+   as unrelated pieces of furniture. */
 
 .top {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
-  background: var(--paper);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.topinner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 19px;
+  font-weight: 750;
+  font-size: 18px;
+  letter-spacing: -0.015em;
   text-decoration: none;
   color: var(--ink);
   margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.top nav { display: flex; gap: 22px; flex-wrap: wrap; }
+/* A mark rather than a logo we do not have: a small roundel, which is
+   what aircraft wear. Costs nothing and stops the header being a bare
+   line of text. */
+.brand::before {
+  content: "";
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: none;
+  background:
+    radial-gradient(circle at 50% 50%,
+      var(--sun) 0 22%, transparent 23%),
+    radial-gradient(circle at 50% 50%,
+      var(--paper) 0 44%, transparent 45%),
+    var(--sky);
+  box-shadow: inset 0 0 0 1px rgba(18, 33, 46, 0.12);
+}
+
+.top nav { display: flex; gap: 26px; flex-wrap: wrap; }
 .top nav a {
   text-decoration: none;
-  color: var(--ink);
+  color: var(--ink-soft);
+  font-size: 16.5px;
+  font-weight: 550;
   padding: 6px 0;
   border-bottom: 2px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
 }
-.top nav a:hover { border-bottom-color: var(--sky); }
+.top nav a:hover { color: var(--ink); border-bottom-color: var(--sky); }
 
 .burger {
   display: none;
-  background: none;
+  background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   /* 44px: a thumb, not a mouse pointer. */
   min-width: 44px;
   min-height: 44px;
   font-size: 20px;
+  color: var(--ink);
   cursor: pointer;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 780px) {
   .burger { display: block; }
   .top nav {
     display: none;
@@ -96,115 +147,362 @@ a { color: var(--sky-dark); }
     gap: 0;
   }
   .top nav.open { display: flex; }
-  .top nav a {
-    padding: 12px 0;
-    border-bottom: 1px solid var(--line);
-  }
+  .top nav a { padding: 13px 0; border-bottom: 1px solid var(--line); }
 }
 
-/* ---- hero and feed --------------------------------------------------- */
+/* ---- the hero -------------------------------------------------------- */
+/* FULL BLEED, WITH A REAL PICTURE. The first version was a heading on
+   white — nothing on the page said "model aviation club" until you had
+   scrolled to a photograph. The image is the newest post's own first
+   picture, so it is never stale and nobody has to maintain it. */
 
-main { max-width: 760px; margin: 0 auto; padding: 0 20px 48px; }
+.hero {
+  position: relative;
+  min-height: 380px;
+  display: flex;
+  align-items: flex-end;
+  background: linear-gradient(160deg, var(--sky) 0%, var(--sky-deep) 100%);
+  overflow: hidden;
+}
 
-.hero { padding: 40px 0 8px; }
-.hero h1 { font-size: 32px; line-height: 1.2; margin: 0 0 8px; }
-.hero .tagline { color: var(--muted); margin: 0; font-size: 19px; }
+.hero .shot {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  /* Blurred and scaled past the edges: the picture is ATMOSPHERE here,
+     not information — it is shown properly further down the page. This
+     way a portrait poster still fills a wide banner without being
+     stretched or having its subject cropped out. */
+  filter: blur(18px) saturate(115%);
+  transform: scale(1.12);
+  opacity: 0.55;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Contrast for the text, from the bottom, so the top of the picture
+     stays visible. Without this the heading is unreadable over a light
+     photograph — and it WILL be light one day, because the picture is
+     whatever the club posted last. */
+  background: linear-gradient(
+    to top,
+    rgba(10, 26, 38, 0.88) 0%,
+    rgba(10, 26, 38, 0.55) 45%,
+    rgba(10, 26, 38, 0.25) 100%);
+}
+
+.heroinner {
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 72px 24px 40px;
+  color: #fff;
+}
+
+.hero h1 {
+  font-size: clamp(34px, 5vw, 54px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 780;
+  margin: 0 0 12px;
+  text-wrap: balance;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
+}
+
+.hero .tagline {
+  margin: 0;
+  font-size: clamp(17px, 2vw, 21px);
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+}
+
+/* ---- layout ---------------------------------------------------------- */
+
+main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
+
+.feed { max-width: 720px; margin: 0 auto; }
 
 .feed h2 {
-  font-size: 15px;
+  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   color: var(--muted);
-  margin: 36px 0 16px;
+  font-weight: 700;
+  margin: 44px 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+/* A rule that runs to the edge, so the label sits ON a line rather than
+   floating above the first card. */
+.feed h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
 }
 
-.empty { color: var(--muted); }
+.empty {
+  color: var(--muted);
+  background: var(--paper);
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 32px;
+  text-align: center;
+}
+
+/* ---- a post ---------------------------------------------------------- */
 
 .post {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  overflow: hidden;
-  margin-bottom: 24px;
   background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.post:hover { box-shadow: var(--shadow-lift); }
+
+/* ---- the carousel ---------------------------------------------------- */
+/* THE SWIPING IS CSS. scroll-snap-type on the track means a touchscreen,
+   a trackpad, a wheel and the arrow keys all work before any JavaScript
+   runs; the buttons and dots are added on top of something that already
+   works rather than being the only way through.
+ *
+ * NOTHING IS CROPPED. The first version forced 4:3 with object-fit:
+ * cover and sliced the top and bottom off event posters — and for these
+ * posts the poster IS the content, so that was not a styling choice, it
+ * was deleting the date and the venue. Each slide shows the whole image
+ * over a blurred, darkened copy of itself, which fills the frame without
+ * inventing a shape the picture does not have. */
+
+.carousel { position: relative; background: #0e1c27; }
+
+.track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  /* The scrollbar is chrome on a picture. The arrows and dots say where
+     you are; a grey bar across the bottom of a photograph does not. */
+  scrollbar-width: none;
+}
+.track::-webkit-scrollbar { display: none; }
+/* The focus ring belongs on the track — it is the focusable thing — but
+   inset, so it is not clipped by the card's rounded corner. */
+.track:focus-visible { outline-offset: -3px; }
+
+.slide {
+  position: relative;
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  /* 4:5 — portrait-leaning, because posters are the commonest thing this
+     club posts and a landscape frame wastes most of its area on backdrop
+     for them. Landscape photographs still show whole, just with more
+     blur above and below. */
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
 }
 
-/* One photo fills the width; several become a grid. A carousel would
-   need JavaScript, gestures and an accessible fallback to show four
-   pictures, which is a lot of machinery for four pictures. */
-.shots { display: grid; gap: 2px; background: var(--wash); }
-.shots.n1 { grid-template-columns: 1fr; }
-.shots.n2 { grid-template-columns: 1fr 1fr; }
-.shots.n3, .shots.n4 { grid-template-columns: 1fr 1fr; }
-.shots img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
-.shots.n1 img { aspect-ratio: auto; max-height: 560px; object-fit: cover; }
+.slidebg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(28px) brightness(0.55) saturate(120%);
+  /* Scaled past the edges so the blur has no visible border. */
+  transform: scale(1.2);
+}
 
-.post .body { padding: 18px 20px 20px; }
-.post h3 { margin: 0 0 8px; font-size: 21px; }
-/* pre-wrap: captions arrive with the line breaks their author typed,
-   and collapsing them turns a readable post into a wall. */
-.post .text { margin: 0; white-space: pre-wrap; }
+.slide img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Prev / next. Deliberately restrained: they sit ON the picture, so they
+   have to be legible over anything without shouting over it. */
+.cbtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(12, 24, 33, 0.55);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+.cbtn:hover { background: rgba(12, 24, 33, 0.78); }
+.cbtn.prev { left: 12px; }
+.cbtn.next { right: 12px; }
+/* Disabled rather than hidden at the ends: a control that vanishes moves
+   the other one, and the reader loses the target they were aiming at. */
+.cbtn:disabled { opacity: 0.25; cursor: default; }
+
+.dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease;
+}
+.dot.on { background: #fff; transform: scale(1.35); }
+/* THE DOT IS 8px AND A FINGER IS NOT. The visible dot stays small; the
+   thing you can hit is 24px, via a transparent pseudo-element. Making
+   the dot itself bigger would be uglier and no more usable. */
+.dot::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: -8px 0 0 -8px;
+}
+
+.count {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(12, 24, 33, 0.55);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* MOTION IS A PREFERENCE, NOT A DEFAULT. Somebody who has asked their
+   system for reduced motion should not be given smooth-scrolling
+   carousels; the jump is instant instead, and everything still works. */
+@media (prefers-reduced-motion: reduce) {
+  .track { scroll-behavior: auto; }
+  .dot, .cbtn { transition: none; }
+}
+
+.post .body { padding: 22px 24px 22px; }
+.post h3 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+/* pre-wrap: captions arrive with the line breaks their author typed, and
+   collapsing them turns a readable post into a wall. */
+.post .text { margin: 0; white-space: pre-wrap; color: var(--ink-soft); }
 
 .more {
   background: none;
   border: 0;
-  padding: 6px 0;
-  color: var(--sky-dark);
+  padding: 8px 0 0;
+  color: var(--sky-deep);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: underline;
 }
+.more:hover { text-decoration: underline; }
 
-.post .meta { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+.post .meta {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14.5px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 
 /* ---- static pages ---------------------------------------------------- */
 
-.page { padding-top: 32px; }
-.prose h1 { font-size: 30px; line-height: 1.2; margin: 0 0 16px; }
-.prose h2 { font-size: 22px; margin: 32px 0 8px; }
-/* The Datenschutzerklärung nests four levels deep. Without these, h3 and
-   h4 fall back to the browser's defaults and an h3 ends up LARGER than
-   the h2 above it, which makes a long legal document unreadable by
-   destroying the only thing holding its structure together. */
-.prose h3 { font-size: 19px; margin: 26px 0 6px; }
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 0 0;
+}
+.prose {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 40px 44px 44px;
+  box-shadow: var(--shadow);
+  line-height: 1.7;
+}
+.prose > :first-child { margin-top: 0; }
+.prose h1 {
+  font-size: clamp(28px, 4vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin: 0 0 20px;
+}
+.prose h2 {
+  font-size: 23px;
+  letter-spacing: -0.015em;
+  margin: 38px 0 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+/* The Datenschutzerklärung nests FOUR heading levels. Without these, h3
+   and h4 fall back to browser defaults and an h3 renders LARGER than the
+   h2 above it — which destroys the only thing holding a long legal
+   document together. */
+.prose h3 { font-size: 19px; margin: 28px 0 6px; }
 .prose h4 {
   font-size: 17px;
-  margin: 18px 0 4px;
-  color: var(--muted);
+  margin: 20px 0 4px;
+  color: var(--ink-soft);
   font-weight: 650;
 }
-.prose p, .prose li { font-size: 18px; }
+.prose p, .prose li { font-size: 17.5px; color: var(--ink-soft); }
+.prose p { margin: 0 0 14px; }
 .prose ul { padding-left: 22px; }
 .prose li { margin-bottom: 8px; }
-/* Long documents need air between paragraphs more than short ones do. */
-.prose p { margin: 0 0 14px; }
-/* Legal text runs to long URLs and long German compounds; neither may
-   push the page sideways on a phone. */
+.prose strong { color: var(--ink); }
 .prose a { overflow-wrap: anywhere; }
 
-/* THE MANDATORY ALL-CAPS PASSAGES (Art. 21 DSGVO, Widerspruchsrecht)
-   are the reason for the generous line-height and the measure below.
-   They cannot be styled on their own: CSS has no way to select an
-   element by the text inside it, and wrapping them in a class would
-   mean changing a document that is to be used verbatim. So the whole
-   prose block gets the treatment that makes a wall of capitals legible
-   - loose lines and a bounded line length - and nothing is lowercased.
+/* THE MANDATORY ALL-CAPS PASSAGES (Art. 21 DSGVO) are why the measure is
+   bounded. They cannot be styled on their own — CSS cannot select an
+   element by the text inside it, and wrapping them would mean changing a
+   document that is used verbatim. 65 characters is what typography has
+   settled on for continuous reading; without it a wall of capitals runs
+   the full width and the eye loses its place returning. */
+.prose p, .prose li { max-width: 66ch; }
 
-   65 characters is the measure typography has settled on for continuous
-   reading. Without it, a legal document on a wide screen runs the full
-   760px and the eye loses its place returning to the next line, which
-   is exactly the text nobody manages to read anyway. */
-.prose { line-height: 1.7; }
-.prose p, .prose li { max-width: 65ch; }
-
-/* The placeholder notices on Datenschutz and AGB. They are supposed to
-   be impossible to skim past - a legal page that quietly admits it is
-   unfinished in the middle of a paragraph is one nobody notices. */
 .prose blockquote {
   margin: 0 0 24px;
-  padding: 14px 18px;
-  border-left: 4px solid #e0a800;
-  background: #fff8e6;
-  border-radius: 0 10px 10px 0;
+  padding: 16px 20px;
+  border-left: 4px solid var(--sun);
+  background: #fff8ec;
+  border-radius: 0 12px 12px 0;
 }
 .prose blockquote p { margin: 0 0 8px; }
 .prose blockquote p:last-child { margin: 0; }
@@ -212,18 +510,35 @@ main { max-width: 760px; margin: 0 auto; padding: 0 20px 48px; }
 /* ---- footer ---------------------------------------------------------- */
 
 footer {
-  border-top: 1px solid var(--line);
-  background: var(--wash);
-  padding: 28px 20px 40px;
-  text-align: center;
-  color: var(--muted);
+  background: var(--ink);
+  color: rgba(255, 255, 255, 0.72);
+  padding: 40px 24px 48px;
+  margin-top: 56px;
 }
-footer nav {
+.footinner {
+  max-width: 1080px;
+  margin: 0 auto;
   display: flex;
-  gap: 22px;
-  justify-content: center;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  gap: 18px 28px;
+  align-items: center;
 }
-footer a { color: var(--sky-dark); }
-footer p { margin: 0; font-size: 15px; }
+footer nav { display: flex; gap: 24px; flex-wrap: wrap; margin-right: auto; }
+footer a {
+  color: rgba(255, 255, 255, 0.86);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.24);
+}
+footer a:hover { border-bottom-color: rgba(255, 255, 255, 0.8); }
+footer p { margin: 0; font-size: 14.5px; }
+
+@media (max-width: 780px) {
+  :root { font-size: 17px; }
+  main { padding: 0 16px 48px; }
+  .heroinner { padding: 52px 16px 32px; }
+  .hero { min-height: 300px; }
+  .prose { padding: 26px 20px 30px; border-radius: 14px; }
+  .post .body { padding: 18px 18px; }
+  .topinner { padding: 12px 16px; }
+  footer { padding: 32px 16px 40px; }
+}
