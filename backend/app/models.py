@@ -4,6 +4,31 @@ DECLARED ONCE, HERE. Alembic derives the migrations from these models
 with --autogenerate, so the DDL is never typed a second time and cannot
 disagree with the code that uses it.
 
+NOTHING IS STORED THAT IS NOT TECHNICALLY REQUIRED. The shepherd's rule,
+and it is stricter than "we have a lawful basis" — the question each
+column has to answer is not *may* we keep this, but does the thing stop
+working without it.
+
+The first version of this file failed that test three times, and the
+comments are the evidence: it stored a truncated user agent on every
+session while the comment beside it said "we have no use for it", it
+copied the provider's email onto the Identity row "for display only"
+when Member.email already held it, and it kept last_login_at, which is
+behaviour rather than identity. Each was defensible and none was
+required. They are gone.
+
+What is left, and why each one has to be:
+
+    email          the identifier somebody signs in with
+    password_hash  only for accounts that use a password; NULL otherwise
+    is_active      whether the account may be used at all
+    is_approved    whether the club has let them in
+    email_verified whether the address has been proven
+    created_at     which account is older, when two collide; and the
+                   basis for deleting dormant ones
+    provider/subject  which federated account this is
+    session id/member/expires  the session, and when it stops
+
 NOTHING BRIGHTBEAN OWNS IS MAPPED HERE. Its tables are read with raw SQL
 in app/db.py, over a connection PostgreSQL itself holds read-only. That
 is not squeamishness: an ORM model of somebody else's table is a second
@@ -64,8 +89,11 @@ class Member(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True,
                                        nullable=False, index=True)
 
-    display_name: Mapped[str] = mapped_column(String(120), nullable=False,
-                                              default="")
+    # NO display_name. It is pleasant to greet somebody by name and it is
+    # not required for anything to work - the members area can address
+    # people by the address they signed in with. Google offers one; that
+    # is a reason it is AVAILABLE, not a reason to keep it. If a purpose
+    # appears later it is one column and one generated migration.
 
     # NULLABLE ON PURPOSE. A member who only ever signs in with Google has
     # no password, and storing a placeholder hash would be a credential
@@ -86,8 +114,11 @@ class Member(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now())
-    last_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True)
+
+    # NO last_login_at. It is behaviour, not identity: knowing WHEN a
+    # member last signed in is a record of what they did, and nothing
+    # here needs it. Dormant-account cleanup can work from created_at
+    # and the absence of sessions.
 
     identities: Mapped[list["Identity"]] = relationship(
         back_populates="member", cascade="all, delete-orphan")
@@ -129,9 +160,11 @@ class Identity(Base):
     # address becomes a stranger to us.
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    # What the provider last told us, kept for display only. Never used to
-    # decide who somebody is.
-    email: Mapped[str] = mapped_column(String(320), nullable=False, default="")
+    # NO email here. The first version kept what the provider last told
+    # us "for display only" — a second copy of an address Member.email
+    # already holds, on a row that exists to answer one question: which
+    # Google account is this. A duplicate of somebody's personal data,
+    # stored for a purpose that was already served.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -169,11 +202,12 @@ class Session(Base):
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True)
 
-    # For the member's own "where am I signed in" list later. Truncated
-    # rather than stored whole - a full user agent string is fingerprint
-    # material and we have no use for it.
-    user_agent: Mapped[str] = mapped_column(String(200), nullable=False,
-                                            default="")
+    # NO user_agent. The first version stored a truncated one "for the
+    # member's own 'where am I signed in' list later", and the comment
+    # beside it said in as many words that it is fingerprint material
+    # and we have no use for it. Writing both of those and keeping the
+    # column anyway is the whole failure mode this rule exists to stop:
+    # a field justified by a feature nobody has asked for.
 
     member: Mapped[Member] = relationship(back_populates="sessions")
 

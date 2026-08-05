@@ -36,21 +36,31 @@ dieser Seite entsteht daher keine Verbindung zu diesen Netzwerken.
 
 Für den Mitgliederbereich ist eine Anmeldung erforderlich.
 
-**Bei der Registrierung mit E-Mail-Adresse** speichern wir Ihre
-E-Mail-Adresse, einen Anzeigenamen und Ihr Passwort. Das Passwort wird
-ausschließlich als kryptografischer Hash gespeichert (Argon2); es ist
-für uns nicht lesbar und kann nicht zurückgewandelt werden.
+Wir speichern grundsätzlich nur, was technisch erforderlich ist. Das
+ist keine Absichtserklärung, sondern die vollständige Aufzählung:
 
-**Bei der Anmeldung mit Google** erhalten wir von Google eine
-eindeutige Kennung Ihres Google-Kontos sowie die dort hinterlegte
-E-Mail-Adresse und den Anzeigenamen. Wir erhalten kein Passwort. Ob und
-in welchem Umfang Google diesen Vorgang seinerseits verarbeitet,
-entnehmen Sie bitte der Datenschutzerklärung von Google.
+**Bei der Registrierung mit E-Mail-Adresse:** Ihre E-Mail-Adresse und
+Ihr Passwort. Das Passwort wird ausschließlich als kryptografischer
+Hash gespeichert (Argon2); es ist für uns nicht lesbar und kann nicht
+zurückgewandelt werden. Dazu kommt der Zeitpunkt der Registrierung
+sowie die Information, ob das Konto freigeschaltet ist.
+
+**Bei der Anmeldung mit Google:** eine eindeutige Kennung Ihres
+Google-Kontos und Ihre E-Mail-Adresse. **Kein Anzeigename**, obwohl
+Google ihn mitliefert — wir benötigen ihn nicht. Wir erhalten kein
+Passwort. Ob und in welchem Umfang Google diesen Vorgang seinerseits
+verarbeitet, entnehmen Sie bitte der Datenschutzerklärung von Google.
 
 **Nach der Anmeldung** setzen wir ein technisch notwendiges Cookie, das
 Ihre Sitzung kennzeichnet. Es enthält keine personenbezogenen Daten,
-sondern eine zufällige Kennung. Es wird gelöscht, wenn Sie sich
-abmelden.
+sondern eine zufällige Kennung. Zur Sitzung selbst speichern wir nur,
+zu welchem Konto sie gehört und wann sie abläuft — **kein Gerät, kein
+Browser-Kennzeichen, keine IP-Adresse**. Sie wird gelöscht, wenn Sie
+sich abmelden.
+
+**Nicht gespeichert wird** insbesondere: der Zeitpunkt Ihrer letzten
+Anmeldung, Ihr Anzeigename, Angaben zu Ihrem Gerät oder Browser sowie
+jede Form von Nutzungsstatistik.
 
 Rechtsgrundlage für die Verarbeitung im Mitgliederbereich ist Art. 6
 Abs. 1 lit. b DSGVO.
