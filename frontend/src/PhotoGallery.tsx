@@ -198,6 +198,19 @@ export default function PhotoGallery({
              a drag, so this does not fire when you swipe. */
           <SwiperSlide key={i} onClick={() => setOpen(i)}>
             <img
+              /* AND ON THE IMAGE ITSELF, because the handler on
+                 SwiperSlide above did not work: deployed and measured,
+                 every click on Impressionen still opened nothing. That
+                 component is a wrapper and there is no guarantee it
+                 forwards an onClick to the element it renders — so the
+                 handler may simply never have been attached.
+
+                 This one certainly is: React puts it on a real <img>.
+                 Both use the SAME index, so if both fire they agree, and
+                 if only one exists it is still right. Belt and braces is
+                 the correct shape when the alternative is another round
+                 trip to find out which of the two attached. */
+              onClick={() => setOpen(i)}
               src={m.url}
               /* Alt text comes from the media library, where somebody
                  wrote one. An empty alt is correct for a decorative image
