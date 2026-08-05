@@ -89,6 +89,43 @@ def sessions(session) -> int:
     return 0
 
 
+#: RFC 2606 reserves .invalid so that a name can never resolve and can
+#: never be anybody's. It is the only domain this file will delete, and
+#: that is what makes `purge` safe to have at all.
+TEST_DOMAIN = "@example.invalid"
+
+
+def purge(session) -> int:
+    """Delete the accounts an end-to-end run left behind.
+
+    THIS IS THE ONLY DELETE IN THIS FILE, and it exists because a test
+    that writes to a live database and cannot clean up is a test that
+    litters. The board's registrations list had three of them in it
+    within twenty minutes — "your tests are leaking" — each one a real
+    row that would have sat in front of the club for ever.
+
+    IT CANNOT TOUCH A MEMBER. The only addresses it will delete end in
+    @example.invalid, which RFC 2606 reserves precisely so that it can
+    never resolve and can never belong to anyone. A real member cannot
+    have one, so this cannot reach them however it is called.
+
+    Deleting the Member takes its identities and sessions with it —
+    models.py declares cascade="all, delete-orphan" on both — so nothing
+    is left pointing at a row that has gone.
+    """
+    doomed = session.scalars(
+        select(Member).where(Member.email.endswith(TEST_DOMAIN))).all()
+    if not doomed:
+        print(f"no {TEST_DOMAIN} accounts — nothing to purge")
+        return 0
+    for m in doomed:
+        print(f"  deleting {m.email}")
+        session.delete(m)
+    session.commit()
+    print(f"{len(doomed)} test account(s) deleted")
+    return 0
+
+
 def set_flag(session, email: str, *, approved: bool | None = None,
              active: bool | None = None, admin: bool | None = None) -> int:
     # LOWERCASED, because that is how it is stored — see _clean_email in
@@ -129,6 +166,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="what", required=True)
     sub.add_parser("list")
     sub.add_parser("sessions")
+    sub.add_parser("purge")
     for name in ("approve", "revoke", "block", "unblock",
                  "admin", "unadmin"):
         one = sub.add_parser(name)
@@ -141,6 +179,8 @@ def main() -> int:
             return show(session)
         if args.what == "sessions":
             return sessions(session)
+        if args.what == "purge":
+            return purge(session)
         if args.what == "approve":
             return set_flag(session, args.email, approved=True)
         if args.what == "revoke":
