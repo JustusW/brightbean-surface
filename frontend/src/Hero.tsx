@@ -76,8 +76,21 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
     const el = root.current;
     if (!el) return;
 
+    // --grow GOES ON THE DOCUMENT, not on the hero, because two things
+    // need it and one of them is <body>. See the padding-bottom rule in
+    // index.css: as the hero shrinks, the body grows the same amount of
+    // bottom padding, so the DOCUMENT'S HEIGHT NEVER CHANGES.
+    //
+    // Without that, this is a feedback loop. The hero shrinks, the page
+    // gets shorter, the browser clamps the scroll position because there
+    // is no longer that much page to scroll, the clamp fires another
+    // scroll event, and the hero grows again. On a short page — like
+    // Impressionen, which is a hero and one row of pictures — it settles
+    // into a rubber band and the page reads as "basically unscrollable".
+    const docEl = document.documentElement;
+
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      el.style.setProperty("--grow", "0");
+      docEl.style.setProperty("--grow", "0");
       el.style.setProperty("--pan", "0px");
       return;
     }
@@ -87,7 +100,7 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
       frame = 0;
       const y = window.scrollY;
       const grow = 1 - Math.min(1, Math.max(0, y / SHRINK_OVER));
-      el.style.setProperty("--grow", grow.toFixed(3));
+      docEl.style.setProperty("--grow", grow.toFixed(3));
       // Only while the hero is still on screen; past that it is clipped
       // away and there is nothing to hold still.
       el.style.setProperty("--pan", `${Math.min(y, el.offsetHeight)}px`);
@@ -101,6 +114,11 @@ export default function Hero({ title, image, video, poster }: HeroProps) {
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (frame) cancelAnimationFrame(frame);
+      // Back to 1 — "nothing has shrunk" — because --grow now lives on
+      // the document and would otherwise outlive this hero onto a page
+      // that has none, leaving the body padded for a compensation that
+      // is not happening.
+      docEl.style.setProperty("--grow", "1");
     };
   }, []);
 

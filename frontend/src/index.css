@@ -47,6 +47,14 @@
   --display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif,
     system-ui, sans-serif;
 
+  /* HOW MUCH OF THE HERO IS LEFT: 1 at the top of the page, 0 once you
+     have scrolled past. Hero.tsx overwrites this on <html> itself, so
+     the value here is the answer for every page that HAS no hero — and
+     for the moment before the first scroll frame runs. Two rules read
+     it: the hero's own height, and the body's bottom padding, which is
+     what keeps the document's height from changing as it shrinks. */
+  --grow: 1;
+
   font-family: var(--font);
   font-size: 18px;
   color: var(--ink);
@@ -84,11 +92,26 @@ body {
   min-height: 100vh;
   /* Deliberately transparent. See above. */
   background: transparent;
-  /* THE PAGE MUST NOT END UNDERNEATH THE DOCK. Content is padded by the
-     collapsed height, so the last line of a page is readable rather than
-     sitting behind a bar - and the dock only overlaps itself when it
-     expands, at which point you have reached the end anyway. */
-  padding-bottom: 46px;
+  /* TWO THINGS ADD UP HERE, and the second is the fix for a page that
+     will not scroll.
+
+     46px so THE PAGE DOES NOT END UNDERNEATH THE DOCK, which is pinned
+     and always exactly that tall.
+
+     Plus exactly as much as the hero has given up. The hero shrinks by
+     300px as you scroll; without this the document gets 300px shorter at
+     the same moment, the browser clamps the scroll position because
+     there is no longer that much page, the clamp fires another scroll
+     event, and the hero grows back. On a long page you never notice that
+     argument. On a SHORT one — Impressionen is a hero and one row of
+     pictures — it settles into a rubber band, and the report of it was
+     "basically unscrollable, the images are always cutoff".
+
+     Compensating HERE rather than under the hero puts the reclaimed
+     space at the very foot of the document, behind the dock and out of
+     the way, instead of opening a visible gap in the middle of the
+     page. */
+  padding-bottom: calc(46px + 300px * (1 - var(--grow)));
 }
 
 img { max-width: 100%; height: auto; display: block; }
@@ -250,18 +273,22 @@ a { color: var(--sky-deep); }
   position: relative;
   width: 100%;
 
-  /* TWICE AS HIGH AT THE TOP, settling as you scroll. The two heights
-     are stated so that the large one is EXACTLY twice the small one at
-     every viewport size, whichever side of the clamp it falls on — so
-     "twice the height" is a property of this stylesheet rather than of a
-     number somebody typed into a component.
+  /* SIX HUNDRED AT THE TOP, HALF THAT ONCE YOU HAVE SCROLLED. The
+     shepherd's own numbers: "shrink from fullheight (currently 420
+     (nice) but should be 600) to half height when scrolling."
 
-     THE RESTING HEIGHT ITSELF IS NOT YET AGREED. It is the number that
-     has been wrong three times, and it will be measured on the live page
-     and put to the shepherd rather than guessed a fourth time. */
-  --hero-small: min(46vh, 420px);
-  --hero-large: min(92vh, 840px);
-  --grow: 1;
+     PLAIN PIXELS, NOT A VIEWPORT FRACTION, and that is the lesson rather
+     than a preference. It was min(46vh, 420px), so the number in this
+     file and the number on the screen were different things on every
+     machine — which is most of why this measurement has been argued
+     about four times. 600 now means 600.
+
+     --grow is written on <html> by Hero.tsx rather than here, because
+     <body> reads it too: see the padding-bottom rule above. The pair of
+     them keep the DOCUMENT'S HEIGHT CONSTANT while this shrinks, which
+     is what stops a short page fighting the scroll. */
+  --hero-large: 600px;
+  --hero-small: 300px;
   --pan: 0px;
   height: calc(
     var(--hero-small) + (var(--hero-large) - var(--hero-small)) * var(--grow)
@@ -844,14 +871,15 @@ main > .empty { margin-top: 40px; }
 }
 
 /* ---- the dock: a footer that is always there ------------------------- */
-/* Slim and pinned, opening out at the end of the page.
+/* Slim, pinned, and ALWAYS THIS SIZE.
  *
- * The legal links are in the DOM IDENTICALLY in both states - collapsing
- * changes padding and type size and never removes a control. §5 TMG
- * wants the Impressum within two clicks of every page; pinned, it is
- * within reach from every SCROLL POSITION of every page, which is a
- * stronger promise. A footer that hid its legal links until you scrolled
- * would meet the letter of that and defeat its point. */
+ * "make the footer always the slim size." So it does not open out at the
+ * end of the page any more, and the second set of paddings, sizes and
+ * colours has gone with the JavaScript that switched between them.
+ *
+ * §5 TMG wants the Impressum within two clicks of every page; pinned, it
+ * is within reach from every SCROLL POSITION of every page, which is a
+ * stronger promise and costs 46 pixels. */
 
 .dock {
   position: fixed;
@@ -863,12 +891,7 @@ main > .empty { margin-top: 40px; }
   backdrop-filter: saturate(180%) blur(12px);
   color: rgba(255, 255, 255, 0.72);
   border-top: 1px solid rgba(255, 255, 255, 0.10);
-  transition: padding 220ms ease, background 220ms ease;
   padding: 9px 24px;
-}
-.dock.open {
-  padding: 26px 24px 30px;
-  background: var(--ink);
 }
 
 .footinner {
@@ -886,21 +909,18 @@ main > .empty { margin-top: 40px; }
   text-decoration: none;
   font-size: 14px;
   border-bottom: 1px solid transparent;
-  transition: border-color 140ms ease, font-size 220ms ease;
+  transition: border-color 140ms ease;
   /* Small text, but a full-height hit area: the bar is 46px and the
      link should be too, rather than a 14px sliver of it. */
   padding: 6px 0;
 }
 .dock a:hover { border-bottom-color: rgba(255, 255, 255, 0.7); }
-.dock.open a { font-size: 15.5px; }
 
 .dock p {
   margin: 0;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.55);
-  transition: font-size 220ms ease, color 220ms ease;
 }
-.dock.open p { font-size: 14.5px; color: rgba(255, 255, 255, 0.72); }
 
 /* ---- motion ---------------------------------------------------------- */
 /* EVERY ANIMATION HERE HAS AN ANSWER FOR SOMEBODY WHO HAS ASKED THEIR

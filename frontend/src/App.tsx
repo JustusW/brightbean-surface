@@ -361,59 +361,22 @@ function Shell({ site }: { site: Site | null }) {
   );
 }
 
-/** The footer, always there.
+/** The footer, always there and ALWAYS THE SAME SIZE.
  *
- *  A SLIM BAR PINNED TO THE BOTTOM that opens out when you reach the end
- *  of the page. Two reasons beyond looking better than a slab of dark
- *  blue you only meet after scrolling:
+ *  A slim bar pinned to the bottom. It used to open out when you reached
+ *  the end of the page; the shepherd's instruction is "make the footer
+ *  always the slim size", so the whole expanding apparatus is gone — the
+ *  state, the scroll listener, the resize listener and the second set of
+ *  sizes. It measured the document's height on every scroll, which is
+ *  exactly the sort of thing that has been making short pages behave
+ *  oddly, and it is no loss.
  *
  *  §5 TMG wants the Impressum reachable within two clicks from every
  *  page. Pinned, it is reachable from every SCROLL POSITION of every
- *  page — which is a stronger promise and costs 46 pixels.
- *
- *  And the links are in the DOM identically in both states: collapsing
- *  is padding and type size, never removing a control. A footer that
- *  hid its legal links until you scrolled would satisfy the letter of
- *  the requirement and defeat its point. */
+ *  page — which is a stronger promise and costs 46 pixels. */
 function Dock({ site }: { site: Site | null }) {
-  const [atEnd, setAtEnd] = useState(false);
-
-  // NO DEPENDENCY ARRAY, DELIBERATELY. The page's height changes as the
-  // feed's pictures arrive, and re-running this on every render is what
-  // makes the check notice. Adding and removing two window listeners is
-  // cheap; being wrong about where the bottom is, is not.
-  useEffect(() => {
-    const check = () => {
-      const doc = document.documentElement;
-
-      // A PAGE WITH NOTHING TO SCROLL HAS NO BOTTOM TO REACH, and this
-      // is the bug that shipped: on first load the feed has not arrived,
-      // the page is shorter than the window, so "you are at the end" was
-      // trivially true and the footer opened tall before the visitor had
-      // seen anything. Asking whether the page is scrollable AT ALL
-      // first is the whole fix.
-      const scrollable = doc.scrollHeight > window.innerHeight + 4;
-
-      // 24px of slack: a page height that is a fraction of a pixel out —
-      // which happens constantly as images settle — would otherwise
-      // never quite register as the bottom, and the footer would refuse
-      // to open for reasons nobody could see.
-      const bottom =
-        window.innerHeight + window.scrollY >= doc.scrollHeight - 24;
-
-      setAtEnd(scrollable && bottom);
-    };
-    check();
-    window.addEventListener("scroll", check, { passive: true });
-    window.addEventListener("resize", check);
-    return () => {
-      window.removeEventListener("scroll", check);
-      window.removeEventListener("resize", check);
-    };
-  });
-
   return (
-    <footer className={atEnd ? "dock open" : "dock"}>
+    <footer className="dock">
       <div className="footinner">
         <nav>
           {(site?.footer ?? []).map((l) => (
