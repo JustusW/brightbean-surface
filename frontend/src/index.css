@@ -30,20 +30,13 @@
   --sky-deep: #185a80;
   --sun: #e8a33d;
 
-  /* THE CALL TO ACTION, and it is a MEASURED colour rather than a taste.
-     The contact bubble was first drawn in --sky-deep, which is the
-     club's darkest blue, sitting over a photograph of grass and sky: a
-     dark button on a busy background, which is the opposite of what a
-     call to action is for.
-
-     #48aecb is sampled from the club's OWN PREVIOUS SITE — the chat
-     button bottom-right on www.vfm-stutensee.de, in
-     screenshots/vfm_wix_desktop_fold.png. Bright cyan block, white
-     glyph. Taking it from there rather than inventing one keeps it
-     continuous with what members already recognise, and it is the one
-     colour on this page that nothing else uses. */
-  --cta: #48aecb;
-  --cta-deep: #3a94ae;
+  /* THE CONTACT BUBBLE, bottom right: light grey, and just the bubble.
+     No block behind it, no brand colour in it. The dark blue it started
+     as was unreadable over a photograph of a field; light grey is
+     legible against that AND against the white cards further down the
+     page, which a fixed button has to survive both of. */
+  --cta: var(--line);
+  --cta-hover: var(--paper);
 
   --shadow: 0 1px 2px rgba(18, 33, 46, 0.04),
             0 8px 24px rgba(18, 33, 46, 0.06);
@@ -1370,19 +1363,11 @@ main > .empty { margin-top: 40px; }
   bottom: 58px;
   z-index: 100;
 
-  /* A BRIGHT BLOCK WITH A WHITE GLYPH, which is what the club's own
-     previous site did — see --cta. Two earlier attempts were wrong in
-     opposite directions: an envelope in a blue disc (wrong icon), then
-     a bare dark-blue bubble with no container at all, which is
-     "a dark and badly observable call to action button".
-
-     A CTA has to win against whatever is behind it, and behind it is a
-     photograph of a field. Bright fill, white glyph, real shadow. */
+  /* JUST THE BUBBLE. No block, no disc, no brand colour: a light grey
+     speech bubble sitting in the corner. */
   border: 0;
-  border-radius: 16px;
-  background: var(--cta);
-  color: #fff;
-  padding: 14px;
+  background: none;
+  padding: 4px;
   /* Past the 44px hit area every other control here keeps. */
   width: 60px;
   height: 60px;
@@ -1390,16 +1375,22 @@ main > .empty { margin-top: 40px; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(18, 33, 46, 0.30);
-  transition: background 140ms ease, transform 140ms ease;
+
+  /* THE SHAPE'S OWN SHADOW, not the button's. drop-shadow follows the
+     bubble's outline and its tail; box-shadow would draw a rectangle,
+     which is the block that is not supposed to be there. It is also
+     what keeps a light grey shape legible where the page behind it is
+     pale. */
+  filter: drop-shadow(0 4px 10px rgba(18, 33, 46, 0.45));
+  color: var(--cta);
+  transition: color 140ms ease, transform 140ms ease;
 }
 /* lucide draws at 24x24; this scales it into the padded box. */
 .bubblebtn svg { width: 100%; height: 100%; display: block; }
-.bubblebtn:hover { background: var(--cta-deep); transform: translateY(-2px); }
-/* Open: the same block, so it does not move or change size under the
-   cursor — only the glyph swaps, and the colour goes quiet because
-   closing is not the thing being invited. */
-.bubblebtn.on { background: var(--ink-soft); }
+.bubblebtn:hover { color: var(--cta-hover); transform: translateY(-2px); }
+/* Open: the same size and place, so nothing moves under the cursor —
+   only the glyph swaps. */
+.bubblebtn.on { color: var(--cta); }
 
 .bubble {
   position: fixed;
