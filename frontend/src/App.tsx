@@ -23,6 +23,7 @@ import ContactBubble from "./ContactBubble";
 import Hero from "./Hero";
 import Members from "./Members";
 import PhotoGallery from "./PhotoGallery";
+import Visitenkarten from "./Visitenkarten";
 import { api } from "./api";
 import type { FeedItem, FeedMedia, PageContent, Site } from "./api";
 
@@ -296,6 +297,13 @@ function StaticPage({ site }: { site: Site | null }) {
   // page keeps its prose from the backend and this is appended to it.
   const withAnfahrt = slug === "platz";
 
+  // AND KONTAKT GETS THE CALLING CARDS, for the same reason and by the
+  // same route: Markdown renders to HTML, and three cards with icons and
+  // mailto links are a component. Not lazy-loaded the way Anfahrt is —
+  // that defers 150 kB of Leaflet, and this is two icons out of a
+  // package the bubble already pulls in.
+  const withKarten = slug === "kontakt";
+
   return (
     <main>
       <section className="page">
@@ -329,6 +337,7 @@ function StaticPage({ site }: { site: Site | null }) {
             <Anfahrt />
           </Suspense>
         )}
+        {withKarten && page && <Visitenkarten />}
       </section>
     </main>
   );
