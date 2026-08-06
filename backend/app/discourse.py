@@ -96,7 +96,7 @@ import hmac
 import os
 import re
 import secrets
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
@@ -187,11 +187,31 @@ def _return_url(fields: dict[str, str]) -> str | None:
     wanted = (fields.get("return_sso_url") or "").strip()
     if not wanted:
         return f"{FORUM_ORIGIN}/session/sso_login"
+
     parts = urlsplit(wanted)
-    origin = f"{parts.scheme}://{parts.netloc}"
-    if origin.rstrip("/") != FORUM_ORIGIN:
+    if (parts.hostname or "").lower() != urlsplit(FORUM_ORIGIN).hostname:
         return None
-    return wanted
+
+    # THE HOST IS CHECKED; THE SCHEME IS IMPOSED. MEASURED, and it would
+    # have broken every login on the first attempt: the live forum sent
+    #
+    #   return_sso_url=http://forum.modellflug-stutensee.de/session/sso_login
+    #
+    # over PLAIN http, because Discourse's `force_https` is off by
+    # default and nothing about being behind a TLS terminator changes
+    # how it builds its own URLs. Comparing the whole origin — scheme
+    # included — refused that as a foreign destination, and the member
+    # would have been bounced with an error naming a setting on a
+    # machine they cannot see.
+    #
+    # So the HOST decides whether this is our forum, and the scheme is
+    # then forced to https rather than followed. That is the stricter
+    # reading, not the laxer one: it means no signed payload of ours can
+    # be sent over plain http even if the forum asks for it, which is a
+    # downgrade worth refusing to perform rather than merely refusing to
+    # accept. `force_https` is set on the forum as well, but this must
+    # not depend on somebody else's setting staying right.
+    return urlunsplit(("https", parts.netloc, parts.path, parts.query, ""))
 
 
 #: What Discourse will accept as a username: letters, numbers, and
