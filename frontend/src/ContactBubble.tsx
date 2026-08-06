@@ -156,10 +156,14 @@ export default function ContactBubble() {
           other dependency here, so the single-origin rule holds and it
           tree-shakes to the two icons actually used.
 
-          MessageSquare RATHER THAN MessageCircle, deliberately: a
-          filled circle with a tail is still something somebody can
-          reasonably call a blue circle. A rounded rectangle with a tail
-          can only be read one way. */}
+          WHITE GLYPH ON A BRIGHT BLOCK, which is what the club's own
+          previous site did — the chat button on www.vfm-stutensee.de is
+          a cyan square with a white filled bubble in it, and the colour
+          in index.css is sampled from that screenshot rather than
+          chosen. The version between the envelope and this one had no
+          container at all and used the club's darkest blue over a
+          photograph of a field: "a dark and badly observable call to
+          action button". A CTA has to win against what is behind it. */}
       <button
         className={`bubblebtn${open ? " on" : ""}`}
         aria-expanded={open}
