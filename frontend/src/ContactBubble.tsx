@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { MessageSquare, X } from "lucide-react";
 import { ApiError, api } from "./api";
 
 /** The speech bubble, bottom right: somebody reaching the club.
@@ -140,14 +141,38 @@ export default function ContactBubble() {
     <>
       {/* A REAL BUTTON. It has to be reachable and operable from a
           keyboard, and aria-expanded is what tells a screen reader
-          whether the panel is open. */}
+          whether the panel is open.
+
+          AND IT IS A SPEECH BUBBLE, which is what was asked for. The
+          first version was an envelope glyph inside a blue disc — "I
+          asked for a speech bubble, not a tiny mail envelope in a blue
+          circle" — and an envelope means mail, which is precisely what
+          this is not: nothing here sends anything.
+
+          FROM A LIBRARY, NOT DRAWN BY HAND. The version after the
+          envelope was an SVG path I wrote myself, which is the same
+          mistake in a better costume: "use bloody standard libraries".
+          lucide-react is bundled by Vite into our own assets like every
+          other dependency here, so the single-origin rule holds and it
+          tree-shakes to the two icons actually used.
+
+          MessageSquare RATHER THAN MessageCircle, deliberately: a
+          filled circle with a tail is still something somebody can
+          reasonably call a blue circle. A rounded rectangle with a tail
+          can only be read one way. */}
       <button
         className={`bubblebtn${open ? " on" : ""}`}
         aria-expanded={open}
         aria-label={open ? "Kontakt schließen" : "Kontakt aufnehmen"}
         onClick={() => setOpen(!open)}
       >
-        {open ? "✕" : "✉"}
+        {open ? (
+          <X aria-hidden="true" />
+        ) : (
+          /* Filled, so it has presence in the corner rather than being
+             a thin outline somebody has to look for. */
+          <MessageSquare aria-hidden="true" fill="currentColor" />
+        )}
       </button>
 
       {open && (

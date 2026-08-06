@@ -15,7 +15,18 @@ import type { Enquiry, MemberAccount, Registration } from "./api";
  *  mistake, and "who is in this club" is the question actually being
  *  asked. Those waiting are simply listed first.
  */
-function Board({ me }: { me: MemberAccount }) {
+function Board({
+  me,
+  onChanged,
+}: {
+  me: MemberAccount;
+  /** Tell the page to re-read WHO IT IS. Granting yourself the
+   *  enquiries role changes what this very screen should render, and
+   *  the account object it is holding was fetched before that. Without
+   *  this the console appears only after a reload, which looks like the
+   *  button not having worked. */
+  onChanged: () => void;
+}) {
   const [rows, setRows] = useState<Registration[] | null>(null);
   const [failed, setFailed] = useState("");
   const [busy, setBusy] = useState("");
@@ -51,6 +62,10 @@ function Board({ me }: { me: MemberAccount }) {
       await api.decide(email, what);
       setConfirming("");
       await load();
+      // The row list is not the only thing that may have changed: if
+      // that was your own account, what this page should be showing has
+      // changed too.
+      onChanged();
     } catch (e) {
       setFailed(
         e instanceof ApiError ? e.message : "Das hat nicht geklappt.",
@@ -138,7 +153,33 @@ function Board({ me }: { me: MemberAccount }) {
                 exactly what this page exists to avoid. The server
                 refuses it too; this only avoids offering it. */}
             {r.email === me.email ? (
-              <span className="selbst">Du</span>
+              <>
+                <span className="selbst">Du</span>
+                {/* AN ADMIN MUST BE ABLE TO GIVE THEMSELVES THIS ONE.
+                    The self row offered nothing at all, so the first
+                    admin could not grant the enquiries role to anybody
+                    — including themselves — and with one member in the
+                    club nobody could ever hold it: "there is no fucking
+                    menu I can see for granting shit."
+
+                    Refusing self-revoke of ACCESS is still right: that
+                    is the privilege which can remove the ability to
+                    grant privileges, and a club with no usable admin
+                    has to be repaired from the server. This is a
+                    different permission and taking it from yourself
+                    strands nobody. */}
+                <button
+                  className={r.can_answer ? "regrevoke" : "regok"}
+                  disabled={busy === r.email}
+                  onClick={() =>
+                    decide(r.email, r.can_answer ? "unanswer" : "answer")
+                  }
+                >
+                  {r.can_answer
+                    ? "Anfragen entziehen"
+                    : "Anfragen zuweisen"}
+                </button>
+              </>
             ) : confirming === r.email ? (
               /* THE SECOND CLICK SAYS WHAT IT DOES. Not "OK" in a
                  browser dialog, which a stray return key answers. */
@@ -684,7 +725,17 @@ export default function Members() {
             the public is what somebody signs in to do; approving a new
             account happens a few times a year. */}
         {member.can_answer && <Enquiries />}
-        {member.admin && <Board me={member} />}
+        {member.admin && (
+          <Board
+            me={member}
+            onChanged={() => {
+              api.me().then(setMember).catch(() => {
+                /* Still signed in as far as this page is concerned; the
+                   next action or a reload will correct it. */
+              });
+            }}
+          />
+        )}
       </section>
     );
   }

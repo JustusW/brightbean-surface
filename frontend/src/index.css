@@ -1354,25 +1354,48 @@ main > .empty { margin-top: 40px; }
   right: 16px;
   bottom: 58px;
   z-index: 100;
-  width: 56px;
-  height: 56px;
+
+  /* NO DISC. The icon IS the button — a filled speech bubble in the
+     club's blue, with nothing behind it. "I asked for a speech bubble,
+     not a tiny mail envelope in a blue circle." */
   border: 0;
-  border-radius: 50%;
-  background: var(--sky-deep);
-  color: #fff;
-  font-size: 22px;
-  line-height: 1;
+  background: none;
+  padding: 6px;
+  /* Past the 44px hit area every other control here keeps. */
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: var(--shadow-lift);
-  transition: background 140ms ease, transform 140ms ease;
+
+  /* THE SHAPE'S OWN SHADOW. box-shadow would draw the shadow of the
+     button's RECTANGLE, which is the container-shaped giveaway being
+     removed; drop-shadow follows the bubble's outline and its tail. */
+  filter: drop-shadow(0 6px 14px rgba(18, 33, 46, 0.26));
+  color: var(--sky-deep);
+  transition: color 140ms ease, transform 140ms ease;
 }
-.bubblebtn:hover { background: var(--sky); transform: translateY(-2px); }
-.bubblebtn.on { background: var(--ink-soft); }
+/* lucide draws at 24x24; this scales it to the button. */
+.bubblebtn svg { width: 100%; height: 100%; display: block; }
+.bubblebtn:hover { color: var(--sky); transform: translateY(-2px); }
+/* Open: a cross, smaller, and no shadow — there is no longer a solid
+   shape for a shadow to belong to. */
+.bubblebtn.on {
+  color: var(--ink-soft);
+  filter: none;
+  width: 46px;
+  height: 46px;
+  padding: 10px;
+}
 
 .bubble {
   position: fixed;
   right: 16px;
-  bottom: 124px;
+  /* CLEARS THE BUTTON: 60 tall standing at 58, so its top edge is at
+     118. Arithmetic rather than taste — guessing this sort of number is
+     how the gallery ended up under the hero twice. */
+  bottom: 128px;
   z-index: 100;
   width: 360px;
   max-width: calc(100% - 32px);
@@ -1503,8 +1526,10 @@ main > .empty { margin-top: 40px; }
 @media (max-width: 780px) {
   /* Nearly the full width, and a shorter thread so the input is always
      reachable without scrolling the panel. */
-  .bubble { right: 12px; left: 12px; width: auto; bottom: 116px; }
-  .bubblebtn { right: 12px; bottom: 54px; width: 52px; height: 52px; }
+  /* 54 tall at 54 puts its top edge at 108, so the panel clears it at
+     118. Same arithmetic as the desktop numbers above. */
+  .bubble { right: 12px; left: 12px; width: auto; bottom: 118px; }
+  .bubblebtn { right: 12px; bottom: 54px; width: 54px; height: 54px; }
   .bubblethread { max-height: 38vh; }
 }
 
