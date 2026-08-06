@@ -398,9 +398,13 @@ else.
 
 ## Not done
 
-- **There is nothing behind the door.** An approved member signs in and
-  reads a welcome message. Nobody has yet said what the internal area
-  should actually hold. This is now the largest open thing.
+- **There is almost nothing behind the door.** An approved member signs
+  in and reads a welcome message — unless they hold `can_answer`, in
+  which case they also get the enquiries console. That is the first real
+  thing behind that door, and it arrived as a side effect of the contact
+  bubble rather than as an answer to the question. Nobody has yet said
+  what the internal area should actually hold. This is still the largest
+  open thing.
 - **The rate limiter's state is per-process**, so it is correct only
   because the container runs ONE uvicorn worker — which the Dockerfile
   now says, with the reason. It ran two for a while and the limit was
