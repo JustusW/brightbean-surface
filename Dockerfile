@@ -74,10 +74,35 @@ EXPOSE 8000
 # redirect_uri that says http where Google was told https is refused with
 # a mismatch that names neither side.
 #
-# --forwarded-allow-ips is set to the container network's gateway rather
-# than "*": trusting X-Forwarded-For from anywhere lets any client claim
-# any address, which matters the moment anything here rate-limits.
+# ONE WORKER, AND THAT IS A CORRECTNESS REQUIREMENT RATHER THAN THRIFT.
+#
+# It was 2, and the rate limiter in app/auth.py keeps its state in a
+# module-level dict — so each worker had its OWN table. A caller got two
+# buckets instead of one, and the "5 seconds after 3 failures" escalation
+# only counted the failures that happened to land on the same process.
+#
+# MEASURED, not reasoned about: the identical pair of requests answered
+# 401 then 429 on one run and 401 then 401 on the next, which is exactly
+# what round-robin across two independent limiters looks like. The
+# comment beside the limiter predicted this ("if it ever runs as two
+# processes this becomes a per-process limit") and I did not check what
+# the Dockerfile actually said until the numbers disagreed with me.
+#
+# The alternative — shared state — means Redis or a database round trip
+# on every auth request, for a club site that serves a few dozen people
+# and has deliberately kept both out. One process makes the stated
+# property TRUE, and one process is ample here.
+#
+# --forwarded-allow-ips "*" IS SAFE ONLY BECAUSE OF WHERE THIS LISTENS.
+# The previous comment claimed the gateway address was used and the code
+# said "*", which is worse than either: it read as a considered choice
+# that had not been made. The container's port is published to
+# 127.0.0.1 on the host and nginx is the only thing that can reach it,
+# so the X-Forwarded-For this trusts is written by our own proxy. If
+# that port is ever exposed more widely, this must become the proxy's
+# address — otherwise any caller can pick their own rate-limit bucket by
+# forging the header.
 CMD ["uvicorn", "app.main:app", \
      "--host", "0.0.0.0", "--port", "8000", \
      "--proxy-headers", "--forwarded-allow-ips", "*", \
-     "--workers", "2"]
+     "--workers", "1"]
