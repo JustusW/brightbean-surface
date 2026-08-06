@@ -1,31 +1,38 @@
 """Sending mail, through the relay this machine already uses.
 
-NOTHING NEW IS CONFIGURED HERE, AND THAT IS THE POINT. The server has
-sent mail for months — cron, mdadm and unattended-upgrades all reach a
-human through msmtp, which authenticates to the club's mailbox provider
-and is declared in Vogelwarte's own reference tree
-(control/reference/debian-13/etc/msmtprc.rules).
+IT SENDS AS THE CLUB, NOT AS THE MACHINE, and that distinction is the
+whole of this paragraph. The server has relayed its OWN mail for months
+— cron, mdadm and unattended-upgrades all reach a human through msmtp —
+and the first version of this borrowed that identity, on the argument
+that credentials already proven to send were the ones to use. The
+argument was right about the RELAY and wrong about the IDENTITY: the
+machine's mailbox is spatzengamingserver@kw-it.info, so a member asked
+to confirm their address was written to by a machine account at a
+domain they have never heard of. That is indistinguishable from spam,
+and it is not the club writing to them.
 
-What this file does NOT do is shell out to that msmtp. It cannot: the
+So the club has its own mailbox and everything member-facing sends as
+that. The machine's operations mail is deliberately unchanged and still
+reaches whoever runs the box: one of those failing must not silence the
+other, and neither should ever be mistaken for the other.
+
+WHAT THIS FILE DOES NOT DO IS SHELL OUT TO msmtp. It cannot: the
 surface runs in its own rootless container, as its own unprivileged
-user, and /usr/bin/msmtp and /etc/msmtp-password are on the HOST. A
-container that could read the host's 0600 credential file would be a
-container that has defeated the isolation it was given.
+user, and /usr/bin/msmtp and every credential file are on the HOST. A
+container that could read a host 0600 file would be a container that
+has defeated the isolation it was given.
 
-So it speaks SMTP to the same relay, with the same mailbox, and the
-credentials arrive the way every other server-side secret already
-does — read out of the machine at install time and written into the
-surface's .env, exactly as the PostgreSQL password is. The install
-action reads the `user` and the passwordeval file out of /etc/msmtprc
-rather than being told them, so this cannot drift from the
-configuration that is already proven to work: if msmtp can send, this
-can send.
+So it speaks SMTP to the same relay, and the credentials arrive the way
+every other server-side secret already does — read out of the machine
+at install time and written into the surface's .env, exactly as both
+PostgreSQL passwords are.
 
-    SURFACE_SMTP_HOST      mail.your-server.de   (params.conf: mail_host)
-    SURFACE_SMTP_PORT      587                   (params.conf: mail_port)
-    SURFACE_SMTP_USER      read from /etc/msmtprc
-    SURFACE_SMTP_PASSWORD  read from the file msmtp's passwordeval names
-    SURFACE_MAIL_FROM      the declared mailbox  (params.conf: mail_from)
+    SURFACE_SMTP_HOST      mail.your-server.de  (params: club_mail_host)
+    SURFACE_SMTP_PORT      587                  (params: club_mail_port)
+    SURFACE_SMTP_USER      the club's mailbox   (params: club_mail_user)
+    SURFACE_MAIL_FROM      the same address     (params: club_mail_from)
+    SURFACE_SMTP_PASSWORD  read ON THE SERVER out of the root-only file
+                           that club_mail_password_file names
 
 WHY THE SURFACE NEEDS TO SEND AT ALL. Two things, and they are
 different failures rather than one feature:
