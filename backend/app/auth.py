@@ -231,6 +231,10 @@ def _account(member: Member) -> dict:
         # below checks the column again, server-side, because a flag the
         # browser holds is a flag the browser can edit.
         "admin": member.is_admin,
+        # And whether to offer the enquiries console. Same caveat, same
+        # reason: app/enquiry.py asks the column again on every call and
+        # answers 404 to anybody without it.
+        "can_answer": member.can_answer,
     }
 
 
@@ -1065,6 +1069,13 @@ def registrations(_: Member = Depends(require_admin),
             "approved": m.is_approved,
             "active": m.is_active,
             "admin": m.is_admin,
+            # WHETHER THEY MAY DEAL WITH ENQUIRIES from the contact
+            # bubble. A separate question from `admin`, and deliberately
+            # so: administering accounts and answering the public are
+            # different jobs, and access to the second is for the
+            # Vorstand and their Erfüllungsgehilfen — which is neither
+            # the set of admins nor any elected body.
+            "can_answer": m.can_answer,
             # WHETHER THE ADDRESS WAS EVER PROVEN, which is exactly the
             # question the board is answering when it approves somebody.
             # An unverified address is not a reason to refuse — the club
@@ -1096,10 +1107,11 @@ def decide(payload: dict = Body(default={}),
     """
     email = (payload.get("email", "") or "").strip().lower()
     verb = (payload.get("what", "") or "").strip().lower()
-    if verb not in ("approve", "revoke", "delete"):
+    if verb not in ("approve", "revoke", "delete", "answer", "unanswer"):
         raise HTTPException(
             status_code=400,
-            detail="what muss approve, revoke oder delete sein.")
+            detail="what muss approve, revoke, delete, answer oder "
+                   "unanswer sein.")
 
     member = db.scalar(select(Member).where(Member.email == email))
     if member is None:
@@ -1134,7 +1146,27 @@ def decide(payload: dict = Body(default={}),
         db.commit()
         return JSONResponse({"email": email, "deleted": True})
 
+    if verb in ("answer", "unanswer"):
+        member.can_answer = verb == "answer"
+        # GRANTING IT ALSO LETS THEM IN, mirroring what members.py does
+        # for the admin flag and for the same reason: somebody who may
+        # deal with enquiries but cannot sign in holds a permission they
+        # can never reach, which reads as a broken button rather than as
+        # a half-finished decision.
+        if member.can_answer:
+            member.is_approved = True
+        db.commit()
+        return JSONResponse({"email": member.email,
+                             "can_answer": member.can_answer,
+                             "approved": member.is_approved})
+
     member.is_approved = verb == "approve"
+    # TAKING SOMEBODY'S ACCESS AWAY TAKES THIS WITH IT. Leaving the flag
+    # set on a revoked account would be a permission lying in wait for
+    # the day somebody is approved again for an unrelated reason.
+    if verb == "revoke":
+        member.can_answer = False
     db.commit()
     return JSONResponse({"email": member.email,
-                         "approved": member.is_approved})
+                         "approved": member.is_approved,
+                         "can_answer": member.can_answer})

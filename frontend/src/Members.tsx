@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, api } from "./api";
-import type { MemberAccount, Registration } from "./api";
+import type { Enquiry, MemberAccount, Registration } from "./api";
 
 /** The board's view: who has signed up, and letting them in.
  *
@@ -43,7 +43,7 @@ function Board({ me }: { me: MemberAccount }) {
 
   const decide = async (
     email: string,
-    what: "approve" | "revoke" | "delete",
+    what: "approve" | "revoke" | "delete" | "answer" | "unanswer",
   ) => {
     setBusy(email);
     setFailed("");
@@ -117,6 +117,12 @@ function Board({ me }: { me: MemberAccount }) {
                     whoever holds it sits on the board, which is not
                     true and is not ours to imply. */}
                 {r.admin && " · Admin"}
+                {/* A DIFFERENT PERMISSION FROM Admin, and shown
+                    separately for that reason: this one is for the
+                    Vorstand and their Erfüllungsgehilfen, who need not
+                    be admins and, in the second case, hold no office
+                    at all. */}
+                {r.can_answer && " · Anfragen"}
                 {!r.active && " · gesperrt"}
                 {/* Said only when it is NOT true. A verified address is
                     the ordinary case and does not need announcing; an
@@ -170,6 +176,25 @@ function Board({ me }: { me: MemberAccount }) {
                     Freischalten
                   </button>
                 )}
+                {/* WHO MAY DEAL WITH THE PUBLIC. Offered only to
+                    somebody already approved: a permission that cannot
+                    be reached is a button that reads as broken rather
+                    than as a decision half made. Granting it on the
+                    server approves them anyway, so this only avoids
+                    offering the odd order. */}
+                {r.approved && (
+                  <button
+                    className={r.can_answer ? "regrevoke" : "regok"}
+                    disabled={busy === r.email}
+                    onClick={() =>
+                      decide(r.email, r.can_answer ? "unanswer" : "answer")
+                    }
+                  >
+                    {r.can_answer
+                      ? "Anfragen entziehen"
+                      : "Anfragen zuweisen"}
+                  </button>
+                )}
                 {/* DELETE IS ALWAYS OFFERED, approved or not — Art. 17
                     DSGVO is a right the person has whether or not the
                     club ever let them in. */}
@@ -191,6 +216,173 @@ function Board({ me }: { me: MemberAccount }) {
         Freischalten macht aus einem Konto eine Mitgliedschaft. Wer
         freigeschaltet ist, sieht den internen Bereich beim nächsten
         Seitenaufruf — niemand wird dafür abgemeldet.
+      </p>
+    </div>
+  );
+}
+
+/** WHEN, compactly and unambiguously.
+ *
+ *  Pinned to de-DE and 24 hours rather than left to the browser's
+ *  locale: this is read by the club, and a console that renders
+ *  "8/6/2026, 5:14 PM" to somebody whose machine reports en-US is
+ *  month-first nonsense with an am/pm on the end. */
+const WHEN = new Intl.DateTimeFormat("de-DE", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function when(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : WHEN.format(d);
+}
+
+/** What people have sent through the contact bubble.
+ *
+ *  ONLY FOR MEMBERS HOLDING `can_answer` — the Vorstand and their
+ *  Erfüllungsgehilfen. Rendering it is a convenience; the endpoints
+ *  check the column again server-side and answer 404, not 403, to
+ *  anybody else, because an ordinary member has no business learning
+ *  that this console exists.
+ *
+ *  THE ANSWER HAPPENS OUTSIDE THIS SCREEN, by mail or telephone,
+ *  because that is what the visitor was promised — "wird sich dann bald
+ *  bei Ihnen melden". All this does is stop two people answering the
+ *  same enquiry and stop any of them being quietly forgotten.
+ */
+function Enquiries() {
+  const [rows, setRows] = useState<Enquiry[] | null>(null);
+  const [open, setOpen] = useState(0);
+  const [failed, setFailed] = useState("");
+  const [busy, setBusy] = useState("");
+  /** Which one has asked "really?". Deleting cannot be undone, so it
+   *  takes two deliberate clicks and the second says what it will do. */
+  const [confirming, setConfirming] = useState("");
+
+  const load = () =>
+    api
+      .enquiries()
+      .then((r) => {
+        setRows(r.enquiries);
+        setOpen(r.open);
+      })
+      .catch((e) =>
+        setFailed(
+          e instanceof ApiError
+            ? e.message
+            : "Die Anfragen lassen sich gerade nicht laden.",
+        ),
+      );
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const act = async (fn: Promise<unknown>, id: string) => {
+    setBusy(id);
+    setFailed("");
+    try {
+      await fn;
+      setConfirming("");
+      await load();
+    } catch (e) {
+      setFailed(e instanceof ApiError ? e.message : "Das hat nicht geklappt.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (rows === null && !failed) {
+    return (
+      <div className="enquiries">
+        <h2>Anfragen</h2>
+        <p className="empty">Lädt…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="enquiries">
+      <h2>
+        Anfragen
+        {open > 0 && <span className="wartet">{open} offen</span>}
+      </h2>
+
+      {failed && (
+        <p className="membererror" role="alert">
+          {failed}
+        </p>
+      )}
+
+      {rows !== null && rows.length === 0 && (
+        <p className="empty">Es hat noch niemand geschrieben.</p>
+      )}
+
+      {(rows ?? []).map((e) => (
+        <div key={e.id} className={`enq${e.handled ? "" : " offen"}`}>
+          <div className="enqhead">
+            <span className="wann">{when(e.created)}</span>
+            {e.handled ? (
+              <span>
+                erledigt {when(e.handled)}
+                {e.handled_by && ` · ${e.handled_by}`}
+              </span>
+            ) : (
+              <span>offen</span>
+            )}
+          </div>
+
+          {/* AS WRITTEN. React escapes it, so there is no path from what
+              somebody typed into the bubble to markup that runs here. */}
+          <div className="enqmsgs">
+            {e.messages.map((m, i) => (
+              <p key={i}>{m.body}</p>
+            ))}
+          </div>
+
+          <div className="enqacts">
+            {confirming === e.id ? (
+              <>
+                <button
+                  className="enqdel"
+                  disabled={busy === e.id}
+                  onClick={() => act(api.enquiryDelete(e.id), e.id)}
+                >
+                  Endgültig löschen
+                </button>
+                <button onClick={() => setConfirming("")}>Abbrechen</button>
+              </>
+            ) : (
+              <>
+                <button
+                  className={e.handled ? "" : "enqdone"}
+                  disabled={busy === e.id}
+                  onClick={() => act(api.enquiryHandle(e.id, !e.handled), e.id)}
+                >
+                  {e.handled ? "Wieder öffnen" : "Erledigt"}
+                </button>
+                <button
+                  className="enqask"
+                  disabled={busy === e.id}
+                  onClick={() => setConfirming(e.id)}
+                >
+                  Löschen
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ))}
+
+      <p className="membernote">
+        Die Antwort selbst geht per E-Mail oder Telefon hinaus — genau
+        das haben wir der Person versprochen. „Erledigt“ hält hier nur
+        fest, dass sich jemand darum gekümmert hat.
       </p>
     </div>
   );
@@ -488,6 +680,10 @@ export default function Members() {
         {/* THE BOARD'S WORK, below the welcome and only for the board.
             Outside .memberbox because it is a list that grows, and the
             440px card was measured for a login form. */}
+        {/* THE DAILY WORK FIRST, the administration after it. Answering
+            the public is what somebody signs in to do; approving a new
+            account happens a few times a year. */}
+        {member.can_answer && <Enquiries />}
         {member.admin && <Board me={member} />}
       </section>
     );

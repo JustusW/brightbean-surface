@@ -23,6 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import auth
 from . import config as config_module
 from . import db
+from . import enquiry
 
 app = FastAPI(
     title="brightbean-surface",
@@ -223,6 +224,13 @@ if auth.google_configured():
 # answered with index.html, and the members area would fail by rendering
 # a perfectly good web page.
 app.include_router(auth.router)
+
+# THE CONTACT BUBBLE, on the same terms and in the same window: after the
+# public endpoints, before the catch-all. It is the only ANONYMOUS write
+# on this site — anybody at all may POST /api/enquiry — which is why the
+# module bounds it three separate ways and why it is worth knowing it is
+# here rather than tucked inside the auth router.
+app.include_router(enquiry.router)
 
 
 # ---------------------------------------------------------------------------

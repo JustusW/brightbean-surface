@@ -73,6 +73,11 @@ export interface MemberAccount {
    *  column again server-side, because a flag the browser holds is a
    *  flag the browser can edit. */
   admin: boolean;
+  /** Whether to offer the enquiries console. Same caveat, same reason.
+   *  A DIFFERENT question from `admin`: this one is for the Vorstand
+   *  and their Erfüllungsgehilfen, who are neither admins nor, in the
+   *  second case, holders of any office at all. */
+  can_answer: boolean;
 }
 
 /** One person who has signed up, as the board sees them. */
@@ -89,6 +94,30 @@ export interface Registration {
   created: string;
   /** How they get in: "password", "google", or both. */
   how: string[];
+  /** Whether they may read and answer enquiries from the contact
+   *  bubble. NOT the same as `admin`: administering accounts and
+   *  answering the public are different jobs, and the second is for the
+   *  Vorstand and their Erfüllungsgehilfen. */
+  can_answer: boolean;
+}
+
+/** One thing a visitor typed into the contact bubble. */
+export interface EnquiryMessage {
+  body: string;
+  /** ISO timestamp. */
+  at: string;
+}
+
+/** One conversation from the bubble, as the club sees it. */
+export interface Enquiry {
+  id: string;
+  /** ISO timestamp. */
+  created: string;
+  /** ISO timestamp, or null while nobody has dealt with it. */
+  handled: string | null;
+  /** The address of whoever dealt with it; empty while nobody has. */
+  handled_by: string;
+  messages: EnquiryMessage[];
 }
 
 /** What went wrong, as the BACKEND put it.
@@ -195,11 +224,49 @@ export const api = {
   // no business learning that this exists.
   registrations: () =>
     get<{ members: Registration[] }>("/api/auth/registrations"),
-  decide: (email: string, what: "approve" | "revoke" | "delete") =>
-    post<{ email: string; approved?: boolean; deleted?: boolean }>(
-      "/api/auth/registrations/decide",
-      { email, what },
-    ),
+  decide: (
+    email: string,
+    what: "approve" | "revoke" | "delete" | "answer" | "unanswer",
+  ) =>
+    post<{
+      email: string;
+      approved?: boolean;
+      deleted?: boolean;
+      can_answer?: boolean;
+    }>("/api/auth/registrations/decide", { email, what }),
+
+  // ---- the contact bubble ---------------------------------------------
+  //
+  // THE ONLY ANONYMOUS WRITE ON THIS SITE. Anybody at all may post an
+  // enquiry — there is no account, no session and no cookie set by it.
+  // The token comes back from the server and the page keeps it only for
+  // as long as the tab is open, which is all the flow needs: message,
+  // then contact details, then somebody gets in touch out of band.
+  /** Leave a message, or add to the one this tab already started.
+   *  Answers the thread's token and how many messages it now holds —
+   *  the count decides which canned reply is shown, so a reload cannot
+   *  desynchronise the script from what was actually stored. */
+  enquire: (message: string, token?: string) =>
+    post<{ token: string; count: number }>("/api/enquiry", {
+      message,
+      token: token ?? "",
+    }),
+
+  // ---- and the club's side of it ---------------------------------------
+  //
+  // can_answer ONLY, enforced server-side, which answers 404 rather than
+  // 403 to a signed-in member without it: an ordinary member has no
+  // business learning that this console exists.
+  enquiries: () => get<{ enquiries: Enquiry[]; open: number }>(
+    "/api/enquiry/list",
+  ),
+  enquiryHandle: (id: string, done: boolean) =>
+    post<{ id: string; handled: boolean }>("/api/enquiry/handle", {
+      id,
+      done,
+    }),
+  enquiryDelete: (id: string) =>
+    post<{ id: string; deleted: boolean }>("/api/enquiry/delete", { id }),
 
   /** WHERE THE GOOGLE LEG STARTS. A full page navigation rather than a
    *  fetch: the browser has to leave for Google and come back, and an

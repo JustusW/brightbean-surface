@@ -46,6 +46,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     String,
+    Text,
     UniqueConstraint,
     func,
     text,
@@ -147,6 +148,26 @@ class Member(Base):
                                            default=False)
     email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False,
                                                  default=False)
+
+    # MAY READ AND ANSWER ENQUIRIES from the public contact bubble.
+    #
+    # A CAPABILITY, NOT AN OFFICE, and the distinction is the shepherd's:
+    # "I'm an Admin, not part of the Vorstand." Access is for the Vorstand
+    # AND their Erfüllungsgehilfen — people acting on the board's behalf who
+    # hold no office at all — so a column called `is_vorstand` would become
+    # a lie the first time a Gehilfe answers a message. It says what the
+    # holder may DO, which is the only thing this code needs to know.
+    #
+    # Separate from `is_admin` for the same reason: administering accounts
+    # and answering the public are different jobs, and one person having
+    # both is a fact about that person rather than about the model.
+    #
+    # server_default, like is_admin above and for the identical reason —
+    # `member` has rows, and PostgreSQL refuses a NOT NULL column added to
+    # a populated table with no value for the rows already there.
+    can_answer: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                             server_default=text("false"),
+                                             default=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -312,3 +333,120 @@ class Token(Base):
         # could be presented back — but it is still half a credential's
         # fingerprint, so only the front of it appears.
         return f"<Token {self.purpose} {self.id[:8]}…>"
+
+
+class Enquiry(Base):
+    """Somebody who is NOT a member, asking the club something.
+
+    THE CONTACT BUBBLE, bottom right of every page. A visitor types a
+    message, it is stored, and a member holding `can_answer` reads it and
+    gets back to them. There is no live chat behind it and the page never
+    claims there is — the canned reply says somebody will be in touch,
+    which is a promise a volunteer club can actually keep. A blinking
+    cursor nobody is watching is worse than no bubble at all.
+
+    IN DATA-PROTECTION TERMS THIS IS THE KONTAKTFORMULAR THE
+    DATENSCHUTZERKLÄRUNG ALREADY DESCRIBES: the same data, the same
+    purpose ("zwecks Bearbeitung der Anfrage"), the same legal basis and
+    the same retention rule, with a faster transport. That equivalence is
+    what lets it exist under the club's current notice, and it is only
+    true while two things hold — nothing here reaches a third party, and
+    nothing is collected that the form would not have collected.
+
+    WHICH IS WHY THIS TABLE HAS NO NAME COLUMN, NO ADDRESS COLUMN AND NO
+    IDENTIFIER OF THE VISITOR. Whatever contact details somebody chooses
+    to give arrive as a MESSAGE, in their own words, and are stored as
+    exactly that. Parsing an address out into a column of its own would
+    be a second copy of the same personal data, kept for a purpose the
+    first copy already serves.
+
+    NO NOTIFICATIONS, on instruction: "these land in our database, a
+    member with the appropriate role can see it and answer. period."
+    """
+
+    __tablename__ = "enquiry"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+
+    #: WHAT THE VISITOR'S BROWSER PRESENTS IN ORDER TO ADD TO THIS THREAD.
+    #:
+    #: The second message is the contact details, and it has to land on
+    #: the same enquiry or the club is left holding a telephone number
+    #: attached to nothing. The visitor has no account and no session, so
+    #: the thread carries its own credential.
+    #:
+    #: Minted with secrets.token_urlsafe, like Session.id and NOT by a
+    #: uuid default: this value is what authorises an append, so it comes
+    #: from the one scheme here whose output cannot be derived from
+    #: anything else.
+    #:
+    #: Stored raw rather than hashed, and the difference from Token is
+    #: deliberate — a Token travels through EMAIL and comes to rest in
+    #: mailboxes and mail logs, whereas this never leaves the browser
+    #: that created it.
+    token: Mapped[str] = mapped_column(String(64), unique=True,
+                                       nullable=False, index=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    #: WHEN SOMEBODY DEALT WITH IT, AND WHO. Null means nobody has yet.
+    #:
+    #: This is the whole of "and answer". The answer itself happens
+    #: OUTSIDE this system, by mail or telephone, because that is what
+    #: the visitor was promised — "wird sich dann bald bei Ihnen melden".
+    #: What the club needs from the software is only that two people do
+    #: not answer the same enquiry and that none is quietly forgotten.
+    handled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True)
+    handled_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("member.id", ondelete="SET NULL"),
+        nullable=True)
+
+    #: SET NULL rather than CASCADE, and the choice matters: a member
+    #: leaving the club must not delete the record of the enquiries they
+    #: once dealt with. The enquiry is the club's, not theirs.
+    handled_by: Mapped["Member | None"] = relationship()
+
+    messages: Mapped[list["EnquiryMessage"]] = relationship(
+        back_populates="enquiry", cascade="all, delete-orphan",
+        order_by="EnquiryMessage.created_at")
+
+    def __repr__(self) -> str:
+        return f"<Enquiry {self.id} handled={self.handled_at is not None}>"
+
+
+class EnquiryMessage(Base):
+    """One thing a visitor typed, stored as they typed it.
+
+    ONLY THE VISITOR'S WORDS. The two canned replies are constants in the
+    frontend, not rows — writing our own fixed strings into the database
+    would be keeping a copy of something we already know, once per
+    enquiry, and it would make the stored record look like a
+    conversation that never happened.
+
+    NO `from_staff` COLUMN. Nothing in this version writes a reply back
+    into the thread, and a column for a feature nobody has asked for is
+    precisely what this module's docstring lists three past examples of.
+    """
+
+    __tablename__ = "enquiry_message"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    enquiry_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("enquiry.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+
+    #: Text rather than a bounded String. The length limit belongs at the
+    #: door, where it can refuse politely and say so; a column that
+    #: truncates somebody's question silently is worse than one that
+    #: does not bound it at all.
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    enquiry: Mapped[Enquiry] = relationship(back_populates="messages")
+
+    def __repr__(self) -> str:
+        return f"<EnquiryMessage {self.id} {len(self.body)} chars>"

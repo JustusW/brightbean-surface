@@ -19,6 +19,7 @@ import { marked } from "marked";
    off the alarm. */
 const Anfahrt = lazy(() => import("./Anfahrt"));
 import Backdrop from "./Backdrop";
+import ContactBubble from "./ContactBubble";
 import Hero from "./Hero";
 import Members from "./Members";
 import PhotoGallery from "./PhotoGallery";
@@ -431,6 +432,14 @@ function Shell({ site }: { site: Site | null }) {
       </Routes>
 
       <Dock site={site} />
+
+      {/* THE CONTACT BUBBLE, on every page, at the top level like the
+          hero and the backdrop. It sits above the dock and BELOW the
+          full-screen gallery viewer — which needs no coordination at
+          all, only a z-index between the two, so opening a photograph
+          covers it rather than leaving a button floating over somebody's
+          picture. */}
+      <ContactBubble />
     </>
   );
 }
