@@ -24,3 +24,24 @@ dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Design iteration screenshots, taken while the front end was being
+# argued about and kept only until the thing they compared was settled.
+#
+# THIS LINE IS WHY THE PARENT REPOSITORY KEPT REPORTING THIS SUBMODULE AS
+# MODIFIED. git reports a submodule dirty when it has untracked content,
+# so eleven leftover jpgs in here showed up in VFM's own `git status` as
+# a modified `brightbean-surface` — which reads exactly like a stale
+# gitlink, and was misdiagnosed as one for most of a day.
+#
+# Measured rather than assumed, with `git status --porcelain=v2`: the
+# flags were `S..U` — untracked only, NOT commit-changed and NOT
+# tracked-modified — and the recorded and actual commit shas were the
+# identical 1c48fdd. The pointer was correct the whole time.
+#
+# NOTE THE ASYMMETRY, so that nobody later "corrects" it: the parent
+# repository TRACKS its own control/design-evidence/, 68 files that are
+# the card-by-card design review somebody asked for and may want again.
+# These are intermediate iterations of pages that have since been agreed.
+# Same directory name, opposite treatment, deliberately.
+/design-evidence/
