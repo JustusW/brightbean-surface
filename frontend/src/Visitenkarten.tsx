@@ -54,18 +54,18 @@ function dial(number: string): string {
 
 export default function Visitenkarten() {
   return (
-    <section className="karten">
+    <section className="vkarten">
       <h2>Ansprechpartner</h2>
 
-      <div className="kartengrid">
+      <div className="vkartengrid">
         {PEOPLE.map((p, i) => {
           const email = p.email || CLUB_EMAIL;
           const phone = p.phone || CLUB_PHONE;
           return (
-            <article className="karte" key={i}>
+            <article className="vkarte" key={i}>
               {p.photo ? (
                 <img
-                  className="kartebild"
+                  className="vkartebild"
                   src={p.photo}
                   alt={p.name ? `Foto von ${p.name}` : ""}
                   loading="lazy"
@@ -76,7 +76,7 @@ export default function Visitenkarten() {
                    information. The name below is what a screen reader
                    should read, and when there is no name it says so. */
                 <CircleUserRound
-                  className="kartebild platzhalter"
+                  className="vkartebild platzhalter"
                   aria-hidden="true"
                   strokeWidth={1.25}
                 />
@@ -85,11 +85,11 @@ export default function Visitenkarten() {
               <h3 className={p.name ? "" : "offen"}>
                 {p.name || "Name folgt"}
               </h3>
-              <p className={`karterolle${p.role ? "" : " offen"}`}>
+              <p className={`vkarterolle${p.role ? "" : " offen"}`}>
                 {p.role || "Funktion folgt"}
               </p>
 
-              <p className="kartekontakt">
+              <p className="vkartekontakt">
                 {/* 44px of hit area on each, like every other control
                     here: this is tapped on a phone, often outdoors. */}
                 <a href={`mailto:${email}`}>
