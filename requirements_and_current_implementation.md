@@ -180,19 +180,18 @@ else.
 
 ## Not done
 
-- **The surface can send no email at all**, and that blocks two separate
-  things. `email_verified` is never set for a password signup, so
-  somebody can register an address they do not own — mitigated only by
-  the board approving every account by hand. And there is no password
-  reset: a member who forgets is stuck, and `members.py` cannot set one
-  either. The server has msmtp for system mail; this container has
-  nothing.
-- **No rate limiting on `/api/auth/login`.** argon2 makes each attempt
-  expensive, which is the point against a guesser and also a cheap way
-  for one to burn the server's CPU.
 - **There is nothing behind the door.** An approved member signs in and
   reads a welcome message. Nobody has yet said what the internal area
-  should actually hold.
+  should actually hold. This is now the largest open thing.
+- **The rate limiter's state is per-process**, so it is correct only
+  because the container runs ONE uvicorn worker — which the Dockerfile
+  now says, with the reason. It ran two for a while and the limit was
+  quietly half of what it claimed. If this is ever scaled out, the
+  limiter needs shared state or it needs moving into nginx.
+- **A malformed request body bypasses the limiter**, because FastAPI
+  answers 422 before the dependency runs. It buys an attacker nothing —
+  no argon2, no database, no account — but it is worth knowing before
+  somebody reads the 1s floor as absolute.
 - **`/api/gallery` reports width 0 height 0**, because Brightbean never
   populated those columns. Nothing in the layout may depend on knowing a
   picture's size in advance, and nothing does.
