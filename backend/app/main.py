@@ -23,6 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import auth
 from . import config as config_module
 from . import db
+from . import discourse
 from . import enquiry
 
 app = FastAPI(
@@ -231,6 +232,13 @@ app.include_router(auth.router)
 # module bounds it three separate ways and why it is worth knowing it is
 # here rather than tucked inside the auth router.
 app.include_router(enquiry.router)
+
+# THE FORUM'S LOGIN, on the same terms and in the same window: after the
+# public endpoints, before the catch-all. It is what makes the members'
+# forum use the club's OWN authentication rather than growing a second
+# set of accounts — see app/discourse.py, and note that it holds the
+# approval gate by REFUSING TO SIGN for anybody the board has not let in.
+app.include_router(discourse.router)
 
 
 # ---------------------------------------------------------------------------

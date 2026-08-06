@@ -476,6 +476,15 @@ export default function Members() {
   /** True once the reset request has been sent, so the page can stop
    *  offering the button and say what happens next. */
   const [asked2, setAsked2] = useState(false);
+  /** Where to go once there is somebody to be — set only when the
+   *  visitor arrived here from the forum's login.
+   *
+   *  app/discourse.py bounces anybody who is not signed in back to this
+   *  page, carrying the signed login request the forum handed it. This
+   *  is the other half of that: without it, somebody who presses
+   *  "Anmelden" on the forum lands on a login form and is then simply
+   *  stranded — which is not helping them, it is interrupting them. */
+  const [weiter, setWeiter] = useState("");
 
   // WHO IS THIS, IF ANYBODY. A 401 here is the ordinary state of a
   // visitor who has not signed in, not a failure worth reporting — so it
@@ -511,6 +520,21 @@ export default function Members() {
        whole of the mitigation. */
     const clean = () =>
       window.history.replaceState({}, "", window.location.pathname);
+
+    /* ARRIVED FROM THE FORUM, not signed in. This is what carries them
+       back to the login they actually asked for.
+
+       ONLY THAT ONE ENDPOINT IS EVER FOLLOWED. `weiter` sits on the
+       URL, so anybody can put anything in it — and a page that follows
+       an arbitrary URL from its own query string is an open redirect,
+       which is precisely the shape that makes a phishing link look as
+       though it came from the club. A path on this origin, and that
+       path only. */
+    const back = query.get("weiter");
+    if (back && back.startsWith("/api/auth/discourse/sso?")) {
+      clean();
+      setWeiter(back);
+    }
 
     const confirming = query.get("bestaetigen");
     if (confirming) {
@@ -570,6 +594,27 @@ export default function Members() {
     // does not resurrect an error that has been read and dealt with.
     window.history.replaceState({}, "", window.location.pathname);
   }, []);
+
+  /** BACK TO THE FORUM, the moment there is somebody to be.
+   *
+   *  Fires for a fresh login and for somebody who was already signed in
+   *  on this browser, because both end with `member` set.
+   *
+   *  DELIBERATELY CONDITIONAL ON `approved`. The signing endpoint
+   *  refuses to sign for anybody the club has not let in — that refusal
+   *  IS the authorisation, there being no "deny" in the protocol — so
+   *  sending an unapproved member back would bounce them straight here
+   *  again. That is a loop, and a loop reads as a broken button rather
+   *  than as a decision. They stay and read why instead.
+   *
+   *  A full navigation rather than a router push: the destination is a
+   *  server endpoint that answers a redirect, not a page this app
+   *  renders. */
+  useEffect(() => {
+    if (weiter && member && member.approved) {
+      window.location.assign(weiter);
+    }
+  }, [weiter, member]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
