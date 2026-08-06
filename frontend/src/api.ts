@@ -161,8 +161,14 @@ export const api = {
   // be revoked before it expired, which is exactly the property you want
   // on the day an account turns out to be compromised.
   me: () => get<MemberAccount | null>("/api/auth/me"),
+  /** ANSWERS 204 AND NOTHING ELSE, whether or not the address already
+   *  has an account — and it does NOT sign you in. Both of those are
+   *  the point rather than an omission: any difference between the two
+   *  cases, including holding a session afterwards, would tell an
+   *  anonymous caller whether a given person is a member here. The
+   *  difference goes to the mailbox instead. */
   signup: (email: string, password: string) =>
-    post<MemberAccount>("/api/auth/signup", { email, password }),
+    post<void>("/api/auth/signup", { email, password }),
   login: (email: string, password: string) =>
     post<MemberAccount>("/api/auth/login", { email, password }),
   logout: () => post<void>("/api/auth/logout", {}),

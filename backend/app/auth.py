@@ -59,6 +59,7 @@ from __future__ import annotations
 import hashlib
 import os
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 
 from argon2 import PasswordHasher
@@ -254,6 +255,122 @@ def require_admin(member: Member | None = Depends(current_member)) -> Member:
 
 
 # ---------------------------------------------------------------------------
+# Rate limiting
+# ---------------------------------------------------------------------------
+#
+# "Everything is nailed to a static 1s and after 3 failed attempts it
+# becomes 5s."
+#
+# FLAT, AND DELIBERATELY NOT A TOKEN BUCKET. There is no burst allowance,
+# no sliding window and no per-endpoint tuning to get wrong: one attempt
+# per second, and one per five seconds once somebody has got it wrong
+# three times. A club of a few dozen people never notices; a script
+# trying passwords gets 720 attempts an hour instead of as many as the
+# CPU will bear.
+#
+# THE argon2 COST IS WHY THIS MATTERS IN BOTH DIRECTIONS. It makes each
+# guess expensive for an attacker, which is the point — and it makes each
+# guess expensive for OUR server, which is the danger: without a floor,
+# a single machine hammering /login is a CPU exhaustion attack that we
+# built ourselves.
+#
+# IN MEMORY, IN ONE PROCESS, AND THAT IS HONEST HERE. The surface runs as
+# a single uvicorn in a single container, so this dictionary IS the whole
+# state. If it ever runs as two processes this becomes a per-process
+# limit and the numbers double; that is a thing to fix when it happens
+# rather than a reason to put a cache server on a club website today.
+
+#: Seconds between attempts, before and after the patience runs out.
+FLOOR = 1.0
+PENALTY = 5.0
+AFTER = 3
+
+#: caller -> (when we last answered them, how many failures in a row)
+_SEEN: dict[str, tuple[float, int]] = {}
+
+#: Nothing here is worth remembering for long, and an unbounded dict on a
+#: public endpoint is its own denial of service. Entries idle for longer
+#: than this are dropped when the table is next swept.
+_FORGET_AFTER = 3600.0
+_SWEEP_AT = 4096
+
+
+def _who(request: Request) -> str:
+    """Who is asking, as well as we can tell.
+
+    X-Forwarded-For FROM OUR OWN nginx, which is the only thing that can
+    reach this process — it listens on loopback and nothing else is
+    proxied to it. Trusting that header from an arbitrary source would
+    let anybody pick their own rate-limit bucket by forging it; here the
+    hop in front of us sets it.
+
+    The left-most entry is the original client. On a NAT — a whole club
+    behind one connection at the field — several people share a bucket,
+    and at one second that is a cost nobody will feel.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    first = forwarded.split(",")[0].strip()
+    if first:
+        return first
+    return request.client.host if request.client else "unknown"
+
+
+def _sweep(now: float) -> None:
+    if len(_SEEN) < _SWEEP_AT:
+        return
+    for key, (last, _) in list(_SEEN.items()):
+        if now - last > _FORGET_AFTER:
+            del _SEEN[key]
+
+
+def throttle(request: Request) -> str:
+    """Refuse anybody who is asking again too soon. Returns their key.
+
+    A DEPENDENCY, so it runs BEFORE the handler and therefore before
+    argon2 does any work — a limiter that only takes effect after the
+    expensive part has run does not limit the expense.
+    """
+    key = _who(request)
+    now = time.monotonic()
+    _sweep(now)
+
+    last, failures = _SEEN.get(key, (0.0, 0))
+    wait = PENALTY if failures >= AFTER else FLOOR
+    if now - last < wait:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Zu viele Versuche. Bitte warte {int(wait)} Sekunden "
+                   f"und versuche es dann noch einmal.",
+            # SO A CLIENT CAN DO THE RIGHT THING WITHOUT GUESSING. It is
+            # also what a well-behaved script honours, which is the
+            # difference between a mistake and an attack.
+            headers={"Retry-After": str(int(wait))},
+        )
+
+    # The clock advances on every ATTEMPT, not only on failures: the
+    # floor is a rate limit, not a punishment.
+    _SEEN[key] = (now, failures)
+    return key
+
+
+def _failed(key: str) -> None:
+    """Record a refusal, which is what escalates 1s to 5s."""
+    last, failures = _SEEN.get(key, (time.monotonic(), 0))
+    _SEEN[key] = (last, failures + 1)
+
+
+def _cleared(key: str) -> None:
+    """Forget the failures. Called when somebody actually gets in.
+
+    Otherwise a member who mistypes three times and then succeeds keeps
+    the five-second penalty for the rest of the hour, which punishes the
+    person the limit exists to protect.
+    """
+    last, _ = _SEEN.get(key, (time.monotonic(), 0))
+    _SEEN[key] = (last, 0)
+
+
+# ---------------------------------------------------------------------------
 # One-time links: proving an address, and resetting a password
 # ---------------------------------------------------------------------------
 #
@@ -353,6 +470,43 @@ def _spend(db: DbSession, secret: str, purpose: str) -> Member | None:
     return member
 
 
+def _send_already_registered(member: Member) -> None:
+    """Somebody tried to register an address that already has an account.
+
+    THE ONLY PLACE THAT DIFFERENCE IS ALLOWED TO SHOW. The HTTP answer is
+    the same 204 either way, so this note is the whole of what
+    distinguishes the two cases — and it goes to the mailbox, where only
+    its owner can read it.
+
+    IT IS ALSO USEFUL RATHER THAN MERELY SAFE: if it was not them, they
+    have just learned that somebody else is typing their address into a
+    club's signup form, which is worth knowing.
+
+    NO LINK AND NO TOKEN. This message is sent to whoever owns the
+    address without anybody having proved anything, so it must not carry
+    anything that can be acted on. If they want back in, the login form
+    and "Passwort vergessen?" are where they already were.
+    """
+    if not mail.configured() or not PUBLIC_BASE:
+        return
+    mail.send(
+        member.email,
+        "Es gibt bereits ein Konto für diese Adresse",
+        "Hallo,\n\n"
+        "mit dieser E-Mail-Adresse wurde gerade versucht, ein Konto im "
+        "Mitgliederbereich des Vereins für Modellflug Stutensee "
+        "anzulegen. Ein Konto für diese Adresse gibt es aber schon.\n\n"
+        "Wenn Du das warst: Du kannst Dich direkt anmelden.\n\n"
+        f"{PUBLIC_BASE}{MEMBERS_PAGE}\n\n"
+        "Falls Du Dein Passwort nicht mehr weißt, benutze dort "
+        "\"Passwort vergessen?\". Wenn Du Dich seinerzeit mit Google "
+        "angemeldet hast, nimm den Google-Knopf.\n\n"
+        "Wenn Du das nicht warst, ist nichts passiert — es wurde kein "
+        "zweites Konto angelegt und an Deinem bestehenden hat sich "
+        "nichts geändert.\n",
+    )
+
+
 def _send_verification(db: DbSession, member: Member) -> None:
     """Ask somebody to prove the address they just typed.
 
@@ -375,7 +529,7 @@ def _send_verification(db: DbSession, member: Member) -> None:
         f"Der Link gilt {LIFETIME_HOURS[VERIFY]} Stunden.\n\n"
         f"Wenn Du Dich nicht registriert hast, kannst Du diese Nachricht "
         f"einfach ignorieren — ohne Bestätigung passiert nichts, und ein "
-        f"Konto wird ohnehin erst vom Vorstand freigeschaltet.\n",
+        f"Konto wird ohnehin erst von einem Administrator freigeschaltet.\n",
     )
 
 
@@ -414,30 +568,59 @@ def _check_password(raw: str) -> str:
     return raw
 
 
-@router.post("/signup")
+@router.post("/signup", status_code=204)
 def signup(payload: dict = Body(default={}),
-           db: DbSession = Depends(session)) -> JSONResponse:
+           db: DbSession = Depends(session),
+           _key: str = Depends(throttle)) -> Response:
+    """Register — and say the same thing whether or not we know you.
+
+    THIS USED TO BE A MEMBERSHIP ORACLE, AND I DEFENDED IT IN WRITING.
+    It answered 409 "Für diese E-Mail-Adresse gibt es bereits ein Konto"
+    for an address that had one, and 200 for one that did not, so anybody
+    could walk a list of addresses through this form and learn which
+    people belong to this club. I called that "a real trade-off, taken
+    deliberately" and then cited it as precedent in the reset route.
+
+        "We are NOT doxing people."
+
+    Membership of a named association, tied to a named person's email
+    address, is exactly the sort of personal data a public form must not
+    hand out — and unlike a password, the people exposed never chose to
+    take the risk.
+
+    SO THE ANSWER IS ALWAYS 204, and the difference goes where only the
+    address's owner can see it: into the mailbox. A new address gets a
+    confirmation link. An address that already has an account gets a note
+    saying so — which is useful to its owner (somebody just tried to
+    register with your address) and invisible to everybody else.
+
+    THE CONSEQUENCE IS THAT SIGNING UP NO LONGER SIGNS YOU IN, and that
+    is not a side effect to be worked around: if a new account got a
+    session and an existing one did not, the two would still be
+    distinguishable and the leak would simply have moved. Everyone gets
+    the same page telling them to check their mail.
+
+    STILL NEVER "set a password on the existing account". A member who
+    arrived through Google has none, and letting a stranger who knows
+    their address choose one would be a takeover with a friendly form in
+    front of it.
+    """
     email = _clean_email(payload.get("email", ""))
     password = _check_password(payload.get("password", ""))
 
-    if db.scalar(select(Member).where(Member.email == email)) is not None:
-        # REFUSED, and NOT quietly turned into "set a password on that
-        # account". A member who arrived through Google has no password,
-        # and letting a stranger who knows their address choose one would
-        # be a takeover with a friendly form in front of it. Adding a
-        # password to an existing account is a job for somebody already
-        # signed in, and it is not built.
-        #
-        # This does tell an anonymous visitor that an address has an
-        # account here. A real trade-off, taken deliberately: the
-        # alternative is a signup that silently does nothing, on a club
-        # site with a few dozen members.
-        raise HTTPException(
-            status_code=409,
-            detail="Für diese E-Mail-Adresse gibt es bereits ein Konto. "
-                   "Bitte melde Dich an.")
+    # HASHED BEFORE THE LOOKUP, ALWAYS, and thrown away on the branch
+    # that does not need it. argon2 is deliberately expensive, so doing
+    # it in one branch and not the other would leave the answer legible
+    # in the response TIME — the same disclosure, measured with a stop
+    # watch instead of read off the screen.
+    fresh_hash = hasher.hash(password)
 
-    member = Member(email=email, password_hash=hasher.hash(password))
+    existing = db.scalar(select(Member).where(Member.email == email))
+    if existing is not None:
+        _send_already_registered(existing)
+        return Response(status_code=204)
+
+    member = Member(email=email, password_hash=fresh_hash)
     db.add(member)
     db.commit()
 
@@ -454,15 +637,16 @@ def signup(payload: dict = Body(default={}),
     # addresses are real.
     _send_verification(db, member)
 
-    row = _new_session(db, member)
-    response = JSONResponse(_account(member))
-    _set_session_cookie(response, row.id)
-    return response
+    # THE SAME 204 THE OTHER BRANCH RETURNS. No session, no body, nothing
+    # that differs by so much as a byte — see the docstring. Signing the
+    # new account in here is exactly what would put the oracle back.
+    return Response(status_code=204)
 
 
 @router.post("/login")
 def login(payload: dict = Body(default={}),
-          db: DbSession = Depends(session)) -> JSONResponse:
+          db: DbSession = Depends(session),
+          key: str = Depends(throttle)) -> JSONResponse:
     email = _clean_email(payload.get("email", ""))
     password = payload.get("password", "") or ""
 
@@ -474,23 +658,41 @@ def login(payload: dict = Body(default={}),
             hasher.verify(DUMMY_HASH, password)
         except Exception:
             pass
+        _failed(key)
         raise HTTPException(
             status_code=401,
             detail="E-Mail-Adresse oder Passwort ist falsch.")
 
     if member.password_hash is None:
-        # SAYING SO IS THE KIND THING AND COSTS NOTHING EXTRA: signup
-        # already reveals that this address has an account, so the only
-        # new information is which button to press. The generic message
-        # would send a Google member round the same wrong loop for ever.
+        # THE SAME REFUSAL AS A WRONG PASSWORD, and the comment that used
+        # to be here is worth recording as evidence: it argued that
+        # saying "this account uses Google" costs nothing extra BECAUSE
+        # signup already revealed that the address has an account. That
+        # is one leak being used to justify a second, which is how a
+        # policy rots from the inside. Signup no longer reveals it, and
+        # neither does this.
+        #
+        # A GOOGLE MEMBER IS NOT LEFT STRANDED. The Google button sits on
+        # the same form, and "Passwort vergessen?" sends them a message —
+        # to their own mailbox — saying which button to press.
+        #
+        # The dummy verify keeps the timing alongside the other two
+        # refusals: an account with no password would otherwise answer
+        # noticeably faster than one with a wrong password, which is the
+        # same disclosure read off a clock.
+        try:
+            hasher.verify(DUMMY_HASH, password)
+        except Exception:
+            pass
+        _failed(key)
         raise HTTPException(
-            status_code=409,
-            detail="Dieses Konto wurde mit Google angelegt. Bitte melde "
-                   "Dich mit Google an.")
+            status_code=401,
+            detail="E-Mail-Adresse oder Passwort ist falsch.")
 
     try:
         hasher.verify(member.password_hash, password)
     except (VerifyMismatchError, InvalidHashError):
+        _failed(key)
         raise HTTPException(
             status_code=401,
             detail="E-Mail-Adresse oder Passwort ist falsch.")
@@ -498,8 +700,8 @@ def login(payload: dict = Body(default={}),
     if not member.is_active:
         raise HTTPException(
             status_code=403,
-            detail="Dieses Konto ist deaktiviert. Bitte wende Dich an den "
-                   "Vorstand.")
+            detail="Dieses Konto ist deaktiviert. Bitte wende Dich an einen "
+                   "Administrator.")
 
     # argon2 publishes its parameters inside the hash, so a stored one
     # can be recognised as weaker than today's default and upgraded
@@ -508,6 +710,12 @@ def login(payload: dict = Body(default={}),
     if hasher.check_needs_rehash(member.password_hash):
         member.password_hash = hasher.hash(password)
         db.commit()
+
+    # THEY GOT IN, so the failures are forgotten. Otherwise a member who
+    # mistypes three times and then succeeds carries the five-second
+    # penalty around for the rest of the hour — punishing exactly the
+    # person the limit exists to protect.
+    _cleared(key)
 
     row = _new_session(db, member)
     response = JSONResponse(_account(member))
@@ -543,7 +751,8 @@ def me(member: Member | None = Depends(current_member)) -> JSONResponse:
 
 @router.post("/verify")
 def verify(payload: dict = Body(default={}),
-           db: DbSession = Depends(session)) -> JSONResponse:
+           db: DbSession = Depends(session),
+           key: str = Depends(throttle)) -> JSONResponse:
     """Redeem a confirmation link.
 
     A POST rather than a GET, even though it arrives as a link. Mail
@@ -555,6 +764,11 @@ def verify(payload: dict = Body(default={}),
     secret = (payload.get("token", "") or "").strip()
     member = _spend(db, secret, VERIFY) if secret else None
     if member is None:
+        # A BAD TOKEN COUNTS AS A FAILED ATTEMPT, so guessing at 256-bit
+        # secrets slows to one attempt per five seconds like everything
+        # else. Guessing was never going to work; being able to try
+        # thousands of times a second is still not something to offer.
+        _failed(key)
         raise HTTPException(
             status_code=400,
             detail="Dieser Bestätigungslink ist nicht mehr gültig. Bitte "
@@ -571,7 +785,8 @@ def verify(payload: dict = Body(default={}),
 
 @router.post("/reset/request", status_code=204)
 def reset_request(payload: dict = Body(default={}),
-                  db: DbSession = Depends(session)) -> Response:
+                  db: DbSession = Depends(session),
+                  _key: str = Depends(throttle)) -> Response:
     """Ask for a password reset link.
 
     ALWAYS 204, whatever is true. Answering differently for an address
@@ -579,10 +794,12 @@ def reset_request(payload: dict = Body(default={}),
     can query — and a club's membership list is exactly the sort of
     thing that should not be assembled from a public form.
 
-    Note that /signup DOES reveal it, deliberately and with the reasoning
-    written there. That is a trade-off taken for a form somebody is
-    filling in about themselves; it is not a reason to hand out the same
-    fact in bulk here.
+    This paragraph used to end by noting that /signup revealed it anyway,
+    "deliberately", as though that made it acceptable here. It did not:
+    it made /signup the leak and this route's care pointless, since an
+    attacker only needs one door. Both are shut now, and the rule is
+    flat — NO endpoint on this site tells an unauthenticated caller
+    whether a given person has an account.
     """
     email = (payload.get("email", "") or "").strip().lower()
     member = (db.scalar(select(Member).where(Member.email == email))
@@ -628,13 +845,15 @@ def reset_request(payload: dict = Body(default={}),
 
 @router.post("/reset/confirm")
 def reset_confirm(payload: dict = Body(default={}),
-                  db: DbSession = Depends(session)) -> JSONResponse:
+                  db: DbSession = Depends(session),
+                  key: str = Depends(throttle)) -> JSONResponse:
     """Set a new password with a reset link."""
     secret = (payload.get("token", "") or "").strip()
     password = _check_password(payload.get("password", ""))
 
     member = _spend(db, secret, RESET) if secret else None
     if member is None:
+        _failed(key)
         raise HTTPException(
             status_code=400,
             detail="Dieser Link ist nicht mehr gültig. Bitte fordere einen "
@@ -642,8 +861,8 @@ def reset_confirm(payload: dict = Body(default={}),
     if not member.is_active:
         raise HTTPException(
             status_code=403,
-            detail="Dieses Konto ist deaktiviert. Bitte wende Dich an den "
-                   "Vorstand.")
+            detail="Dieses Konto ist deaktiviert. Bitte wende Dich an einen "
+                   "Administrator.")
 
     member.password_hash = hasher.hash(password)
     # THEY PROVED THE MAILBOX. Anybody arriving here read a message we
@@ -663,6 +882,7 @@ def reset_confirm(payload: dict = Body(default={}),
 
     # And then signed in, on this browser, with a fresh session — they
     # have just proved the mailbox and chosen the password.
+    _cleared(key)
     row = _new_session(db, member)
     response = JSONResponse(_account(member))
     _set_session_cookie(response, row.id)

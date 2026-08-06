@@ -110,7 +110,13 @@ function Board({ me }: { me: MemberAccount }) {
               <strong>{r.email}</strong>
               <span className="wie">
                 {r.created} · {r.how.join(" + ") || "?"}
-                {r.admin && " · Vorstand"}
+                {/* ADMIN, NOT "Vorstand". Being able to approve accounts
+                    on this website is a technical permission; the
+                    Vorstand is an elected office of the club. Calling
+                    the flag by the office's name told every reader that
+                    whoever holds it sits on the board, which is not
+                    true and is not ours to imply. */}
+                {r.admin && " · Admin"}
                 {!r.active && " · gesperrt"}
                 {/* Said only when it is NOT true. A verified address is
                     the ordinary case and does not need announcing; an
@@ -337,9 +343,25 @@ export default function Members() {
     setError("");
     setBusy(true);
     try {
-      const call = mode === "signup" ? api.signup : api.login;
-      setMember(await call(email, password));
-      setPassword("");
+      if (mode === "signup") {
+        // NO SESSION AND NOTHING TO READ. The route answers 204 whether
+        // or not that address already has an account, so there is no
+        // outcome here to branch on — and branching would be the leak.
+        // What differs goes to the mailbox: a confirmation link, or a
+        // note saying an account already exists.
+        await api.signup(email, password);
+        setPassword("");
+        setNotice(
+          "Fast geschafft — wir haben Dir eine E-Mail geschickt. Bitte " +
+            "bestätige damit Deine Adresse. Danach kannst Du Dich hier " +
+            "anmelden; freigeschaltet wird Dein Konto von einem " +
+            "Administrator.",
+        );
+        setMode("login");
+      } else {
+        setMember(await api.login(email, password));
+        setPassword("");
+      }
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -452,9 +474,9 @@ export default function Members() {
                members area that looks empty and broken to somebody the
                club has not let in yet. */
             <p className="memberwait">
-              Dein Konto ist angelegt, aber noch nicht freigegeben. Der
-              Vorstand schaltet es frei — bis dahin ist der interne Bereich
-              noch nicht sichtbar.
+              Dein Konto ist angelegt, aber noch nicht freigegeben. Ein
+              Administrator schaltet es frei — bis dahin ist der interne
+              Bereich noch nicht sichtbar.
             </p>
           )}
 
