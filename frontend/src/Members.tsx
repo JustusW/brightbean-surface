@@ -656,6 +656,14 @@ export default function Members() {
       "forum-ziel":
         "Die Anmeldung am Vereinsforum wurde abgebrochen, weil das Ziel " +
         "nicht zum Forum des Vereins gehört.",
+      /* Sent by nginx when somebody signed in reaches /brightbean
+         without the Social Media role. A code with no message here
+         would fall through to the generic line, which is true but
+         says nothing about what to do. */
+      "brightbean-kein-zugriff":
+        "Für den Social-Media-Bereich fehlt Dir die Berechtigung. Wenn " +
+        "Du dort mitarbeiten möchtest, wende Dich bitte an einen " +
+        "Administrator.",
       "forum-nicht-freigeschaltet":
         "Dein Konto ist noch nicht freigeschaltet. Sobald ein " +
         "Administrator es freigibt, kannst Du auch das Vereinsforum " +
