@@ -23,6 +23,14 @@ export interface Site {
   tagline: string;
   nav: SiteLink[];
   footer: SiteLink[];
+  /** The members' forum, as an origin — empty when no forum is wired up.
+   *
+   *  IT IS NOT IN THE NAV, deliberately: the forum is shut to anybody
+   *  who is not a member, so a link to it on the public site would be a
+   *  door that answers "no" to almost everyone who tries it. It belongs
+   *  in the members area, which is where somebody signed in will look
+   *  for it. */
+  forum: string;
 }
 
 export interface FeedMedia {

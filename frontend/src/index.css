@@ -1726,3 +1726,38 @@ img.vkartebild {
   .vkarte { padding: 20px 16px 14px; }
   .vkartebild { width: 72px; height: 72px; }
 }
+
+/* ---- the members' forum ------------------------------------------------
+ *
+ * The one link out of the members area, and it only appears for somebody
+ * the club has approved. Styled as the PRIMARY thing on that page rather
+ * than as a footnote: an approved member signing in is, for now, mostly
+ * signing in to reach the forum, so it should not be quieter than the
+ * sign-out button underneath it.
+ *
+ * A real <a>, not a button with an onClick — it navigates to another
+ * origin, so it must behave like a link for anybody using a keyboard, a
+ * screen reader, or a middle click. */
+
+.memberforum {
+  display: block;
+  margin: 18px 0 6px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff;
+  background: var(--cta-strong, #2f6f4f);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.memberforum:hover,
+.memberforum:focus-visible {
+  filter: brightness(1.08);
+}
+
+.memberforum:active {
+  transform: translateY(1px);
+}

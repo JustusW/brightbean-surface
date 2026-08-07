@@ -72,6 +72,15 @@ def site() -> dict:
             {"slug": p.slug, "title": p.title, "kind": p.kind}
             for p in cfg.pages if p.footer
         ],
+        # THE MEMBERS' FORUM. Empty unless it is actually wired up, so
+        # the members area shows the link only when there is somewhere
+        # for it to go — a dead link on the one page a member is meant
+        # to trust is worse than no link.
+        #
+        # NOT IN nav OR footer. The forum requires a login and refuses
+        # everybody else, so a link on the public site would be a door
+        # that says no to almost every visitor who tries it.
+        "forum": discourse.FORUM_ORIGIN if discourse.configured() else "",
     }
 
 

@@ -485,6 +485,20 @@ export default function Members() {
    *  "Anmelden" on the forum lands on a login form and is then simply
    *  stranded — which is not helping them, it is interrupting them. */
   const [weiter, setWeiter] = useState("");
+  /** Where the members' forum lives, read from /api/site.
+   *
+   *  EMPTY UNTIL IT ANSWERS, and empty for good on a deployment with no
+   *  forum wired up — the link then simply does not appear, rather than
+   *  sitting there pointing nowhere. A dead link on the one page a
+   *  member is meant to trust is worse than no link. */
+  const [forum, setForum] = useState("");
+
+  useEffect(() => {
+    api
+      .site()
+      .then((s) => setForum(s.forum))
+      .catch(() => setForum(""));
+  }, []);
 
   // WHO IS THIS, IF ANYBODY. A 401 here is the ordinary state of a
   // visitor who has not signed in, not a failure worth reporting — so it
@@ -579,6 +593,25 @@ export default function Members() {
         "sie bei Google oder lege ein Konto mit Passwort an.",
       deaktiviert:
         "Dieses Konto ist deaktiviert. Bitte wende Dich an den Vorstand.",
+
+      /* THE FORUM'S OWN REFUSALS. These four were shipped without any
+         German at all, so a member who hit one got the generic fallback
+         below — which, until this was noticed, told them their GOOGLE
+         sign-in had failed when they had never touched Google. A code
+         with no message is a message that lies. */
+      "forum-nicht-eingerichtet":
+        "Das Vereinsforum ist auf diesem Server noch nicht eingerichtet.",
+      "forum-signatur":
+        "Die Anmeldung am Vereinsforum konnte nicht bestätigt werden. " +
+        "Bitte versuche es noch einmal. Wenn es weiterhin nicht klappt, " +
+        "sag bitte einem Administrator Bescheid.",
+      "forum-ziel":
+        "Die Anmeldung am Vereinsforum wurde abgebrochen, weil das Ziel " +
+        "nicht zum Forum des Vereins gehört.",
+      "forum-nicht-freigeschaltet":
+        "Dein Konto ist noch nicht freigeschaltet. Sobald ein " +
+        "Administrator es freigibt, kannst Du auch das Vereinsforum " +
+        "nutzen.",
     };
     setError(
       said[code] ??
@@ -587,8 +620,11 @@ export default function Members() {
         // it: we could not establish who they are. Which of them it was
         // is a fact about an attack or an outage, and naming it here
         // would tell an attacker as much as a member.
-        "Die Anmeldung mit Google hat nicht geklappt. Bitte versuche es " +
-          "noch einmal.",
+        /* PROVIDER-NEUTRAL, because this is no longer only Google's
+           fallback: the forum sends codes through the same channel, and
+           telling somebody their Google sign-in failed when they were
+           logging in to the forum is a confident wrong answer. */
+        "Die Anmeldung hat nicht geklappt. Bitte versuche es noch einmal.",
     );
     // Take it back out of the address bar, so a reload or a shared link
     // does not resurrect an error that has been read and dealt with.
@@ -756,6 +792,24 @@ export default function Members() {
               Administrator schaltet es frei — bis dahin ist der interne
               Bereich noch nicht sichtbar.
             </p>
+          )}
+
+          {/* THE VEREINSFORUM, for members the club has actually let in.
+              Hidden from everybody else rather than shown and refused:
+              the forum turns away anyone unapproved, so offering it to
+              somebody still waiting is offering them a closed door.
+
+              IT POINTS AT /session/sso, NOT AT THE FRONT PAGE. Somebody
+              reading this is already signed in here, so that path takes
+              them straight through — the forum asks this site who they
+              are, this site answers, and they arrive logged in. Linking
+              the forum's root instead would land them on its login
+              screen and make them press a second button to do what they
+              have already done. */}
+          {member.approved && forum && (
+            <a className="memberforum" href={`${forum}/session/sso`}>
+              Zum Vereinsforum
+            </a>
           )}
 
           <button className="memberout" onClick={signOut} disabled={busy}>
