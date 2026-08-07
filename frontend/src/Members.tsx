@@ -592,8 +592,27 @@ export default function Members() {
        which is precisely the shape that makes a phishing link look as
        though it came from the club. A path on this origin, and that
        path only. */
+    /* TWO DESTINATIONS ARE FOLLOWED, AND ONLY TWO.
+     *
+     * The forum's signed login, and Brightbean behind the wrapper —
+     * nginx refuses an unauthenticated request to /brightbean and sends
+     * them here, and without carrying the destination they arrive on
+     * this page with nothing to click and no explanation of why they
+     * left the tool.
+     *
+     * BOTH TESTS ARE PREFIX MATCHES ON A PATH OF THIS ORIGIN, which is
+     * what stops `weiter` becoming an open redirect: it sits on the URL
+     * where anybody can write anything, and a page that follows an
+     * arbitrary value is a phishing link wearing the club's name. Note
+     * that "/brightbean/" must keep its trailing slash — "//evil.example"
+     * is a protocol-relative URL that a laxer test would happily
+     * follow. */
     const back = query.get("weiter");
-    if (back && back.startsWith("/api/auth/discourse/sso?")) {
+    if (
+      back &&
+      (back.startsWith("/api/auth/discourse/sso?") ||
+        back.startsWith("/brightbean/"))
+    ) {
       clean();
       setWeiter(back);
     }
