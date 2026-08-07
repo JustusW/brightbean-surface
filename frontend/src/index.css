@@ -926,8 +926,17 @@ main > .empty { margin-top: 40px; }
   padding: 48px 24px 64px;
 }
 
+/* 1200 LIKE EVERYTHING ELSE UNDER Mitglieder. It was 440 - measured for
+   a login form - and once the board and the enquiries console went wide
+   the page had a narrow card sitting on top of two broad ones, which
+   reads as a mistake rather than as a hierarchy.
+   
+   THE ENTRANCE FORMS STAY NARROW, and that is the one exception:
+   .memberbox.schmal on signing in, forgetting a password and choosing a
+   new one. A 1200px-wide password field is not a form, and those three
+   screens are nothing but a form. */
 .memberbox {
-  max-width: 440px;
+  max-width: 1200px;
   margin: 0 auto;
   background: var(--paper);
   border: 1px solid var(--line);
@@ -936,6 +945,8 @@ main > .empty { margin-top: 40px; }
   box-shadow: var(--shadow);
 }
 
+.memberbox.schmal { max-width: 440px; }
+
 .memberbox h1 {
   font-family: var(--display);
   font-size: 30px;
@@ -943,6 +954,67 @@ main > .empty { margin-top: 40px; }
   letter-spacing: -0.03em;
   margin: 0 0 20px;
 }
+
+/* ---- the members' subheader bar --------------------------------------
+ * Who you are on the left, where you can go on the right, one rule
+ * underneath. The three controls were full-width stacked blocks, which
+ * at 1200px meant three enormous bands above the actual content - the
+ * page read as a menu rather than as a members' area.
+ *
+ * WRAPS RATHER THAN SQUEEZES. On a phone the actions drop under the
+ * heading at full size instead of shrinking below the 44px every
+ * control here keeps. */
+
+.memberbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+.memberbar h1 { margin: 0; }
+.memberbar .memberwho { margin: 4px 0 0; }
+
+.memberbaracts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  /* Pushed to the far end, and it is what makes this a BAR rather than
+     a heading with things after it. */
+  margin-left: auto;
+}
+
+/* The two links, in the bar: inline rather than the full-width block
+   they are on their own, and each carries an outward arrow so it is
+   clear before pressing that this leaves the page. */
+.memberbaracts .memberforum {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-height: 44px;
+  padding: 0 18px;
+}
+.memberbaracts .memberforum svg { width: 15px; height: 15px; flex: none; }
+
+/* Abmelden: a glyph, on the same terms as the role controls. Quiet,
+   because it is the one thing on this page nobody needs prompting to
+   find, and 44px square so shrinking the label has not shrunk the
+   target. */
+.memberout.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  flex: none;
+}
+.memberout.icon svg { width: 18px; height: 18px; }
 
 .memberwho {
   margin: -12px 0 18px;

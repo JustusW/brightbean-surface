@@ -8,12 +8,23 @@ import type { FormEvent } from "react";
    
    THE PAIRS ARE DIFFERENT GLYPHS, not one glyph in two colours. The
    shepherd is red-blind; a control whose state is carried by hue alone
-   is a control they cannot read. Granted and revoked differ in SHAPE. */
+   is a control they cannot read. Held and not-held differ in SHAPE.
+
+   AND THE GLYPH SHOWS THE STATE, NOT THE ACTION. That was wrong here
+   once and it inverted the whole page: the icons were picked for what
+   pressing would DO, so an approved member was drawn with a bold UserX
+   and somebody holding the Social Media role got a struck-through
+   megaphone. Read down the list it said nobody was cleared for
+   anything. What pressing does is in the tooltip and the accessible
+   name — where an action belongs — and the glyph answers "do they have
+   it": plain for yes, struck through for no. */
 import {
+  ExternalLink,
+  LogOut,
   Megaphone,
   MegaphoneOff,
+  MessageSquare,
   MessageSquareOff,
-  MessageSquarePlus,
   Trash2,
   UserCheck,
   UserX,
@@ -211,9 +222,9 @@ function Board({
                   }
                 >
                   {r.can_answer ? (
-                    <MessageSquareOff aria-hidden="true" />
+                    <MessageSquare aria-hidden="true" />
                   ) : (
-                    <MessageSquarePlus aria-hidden="true" />
+                    <MessageSquareOff aria-hidden="true" />
                   )}
                 </button>
                 {/* AND THE SOCIAL MEDIA ROLE, on the same terms and for
@@ -240,9 +251,9 @@ function Board({
                   }
                 >
                   {r.can_social ? (
-                    <MegaphoneOff aria-hidden="true" />
-                  ) : (
                     <Megaphone aria-hidden="true" />
+                  ) : (
+                    <MegaphoneOff aria-hidden="true" />
                   )}
                 </button>
               </>
@@ -274,7 +285,7 @@ function Board({
                     aria-label={`Zugang für ${r.email} entziehen`}
                     onClick={() => decide(r.email, "revoke")}
                   >
-                    <UserX aria-hidden="true" />
+                    <UserCheck aria-hidden="true" />
                   </button>
                 ) : (
                   <button
@@ -284,7 +295,7 @@ function Board({
                     aria-label={`${r.email} freischalten`}
                     onClick={() => decide(r.email, "approve")}
                   >
-                    <UserCheck aria-hidden="true" />
+                    <UserX aria-hidden="true" />
                   </button>
                 )}
                 {/* WHO MAY DEAL WITH THE PUBLIC. Offered only to
@@ -312,9 +323,9 @@ function Board({
                     }
                   >
                     {r.can_answer ? (
-                      <MessageSquareOff aria-hidden="true" />
+                      <MessageSquare aria-hidden="true" />
                     ) : (
-                      <MessageSquarePlus aria-hidden="true" />
+                      <MessageSquareOff aria-hidden="true" />
                     )}
                   </button>
                 )}
@@ -344,9 +355,9 @@ function Board({
                     }
                   >
                     {r.can_social ? (
-                      <MegaphoneOff aria-hidden="true" />
-                    ) : (
                       <Megaphone aria-hidden="true" />
+                    ) : (
+                      <MegaphoneOff aria-hidden="true" />
                     )}
                   </button>
                 )}
@@ -891,7 +902,7 @@ export default function Members() {
   if (!asked) {
     return (
       <section className="members">
-        <div className="memberbox">
+        <div className="memberbox schmal">
           <p className="empty">Lädt…</p>
         </div>
       </section>
@@ -903,8 +914,62 @@ export default function Members() {
     return (
       <section className="members">
         <div className="memberbox">
-          <h1>Willkommen</h1>
-          <p className="memberwho">{member.email}</p>
+          {/* THE SUBHEADER BAR. Who you are on the left, where you can
+              go on the right, one rule under it. The three controls used
+              to be full-width stacked blocks, which at 1200px meant
+              three enormous bands of colour above the actual content and
+              a page that read as a menu rather than a members' area. */}
+          <div className="memberbar">
+            <div className="memberbarwho">
+              <h1>Willkommen</h1>
+              <p className="memberwho">{member.email}</p>
+            </div>
+
+            <nav className="memberbaracts">
+              {/* THE VEREINSFORUM, for members the club has let in.
+                  Hidden from everybody else rather than shown and
+                  refused: the forum turns away anyone unapproved, so
+                  offering it to somebody still waiting is offering them
+                  a closed door.
+
+                  IT POINTS AT /session/sso, NOT THE FRONT PAGE. Whoever
+                  reads this is already signed in here, so that path
+                  takes them straight through. */}
+              {member.approved && forum && (
+                <a className="memberforum" href={`${forum}/session/sso`}>
+                  Zum Vereinsforum
+                  <ExternalLink aria-hidden="true" />
+                </a>
+              )}
+
+              {/* BRIGHTBEAN. A path on THIS host rather than a host of
+                  its own, which is what lets the session cookie be sent
+                  with it — nginx asks this site who you are before
+                  forwarding anything. Shown on can_social alone:
+                  approval is implied, because granting the role
+                  approves the member. */}
+              {member.can_social && (
+                <a className="memberforum" href="/brightbean/">
+                  Social Media verwalten
+                  <ExternalLink aria-hidden="true" />
+                </a>
+              )}
+
+              {/* A GLYPH, like the role controls below. Signing out is
+                  the one thing on this page nobody needs prompting
+                  about, and as a full-width button it was the loudest
+                  element on a page whose point is everything else. */}
+              <button
+                className="memberout icon"
+                onClick={signOut}
+                disabled={busy}
+                title="Abmelden"
+                aria-label="Abmelden"
+              >
+                <LogOut aria-hidden="true" />
+              </button>
+            </nav>
+          </div>
 
           {/* Good news, announced rather than merely drawn — somebody
               who has just confirmed an address or set a password needs
@@ -936,41 +1001,6 @@ export default function Members() {
             </p>
           )}
 
-          {/* THE VEREINSFORUM, for members the club has actually let in.
-              Hidden from everybody else rather than shown and refused:
-              the forum turns away anyone unapproved, so offering it to
-              somebody still waiting is offering them a closed door.
-
-              IT POINTS AT /session/sso, NOT AT THE FRONT PAGE. Somebody
-              reading this is already signed in here, so that path takes
-              them straight through — the forum asks this site who they
-              are, this site answers, and they arrive logged in. Linking
-              the forum's root instead would land them on its login
-              screen and make them press a second button to do what they
-              have already done. */}
-          {member.approved && forum && (
-            <a className="memberforum" href={`${forum}/session/sso`}>
-              Zum Vereinsforum
-            </a>
-          )}
-
-          {/* BRIGHTBEAN, for whoever looks after the club's channels.
-              A path on THIS host rather than a host of its own, which
-              is what lets the session cookie be sent with it — nginx
-              asks this site who you are before forwarding anything,
-              so the tool never sees an unauthenticated request.
-
-              Shown on can_social alone: approval is already implied,
-              because granting the role approves the member. */}
-          {member.can_social && (
-            <a className="memberforum" href="/brightbean/">
-              Social Media verwalten
-            </a>
-          )}
-
-          <button className="memberout" onClick={signOut} disabled={busy}>
-            Abmelden
-          </button>
         </div>
 
         {/* THE BOARD'S WORK, below the welcome and only for the board.
@@ -1004,7 +1034,7 @@ export default function Members() {
   if (resetToken) {
     return (
       <section className="members">
-        <div className="memberbox">
+        <div className="memberbox schmal">
           <h1>Neues Passwort</h1>
           <p className="memberwho">
             Wähle ein neues Passwort für Dein Konto.
@@ -1047,7 +1077,7 @@ export default function Members() {
   if (forgot) {
     return (
       <section className="members">
-        <div className="memberbox">
+        <div className="memberbox schmal">
           <h1>Passwort vergessen</h1>
 
           {asked2 ? (
@@ -1108,7 +1138,7 @@ export default function Members() {
   // ---- signed out -----------------------------------------------------
   return (
     <section className="members">
-      <div className="memberbox">
+      <div className="memberbox schmal">
         <h1>Mitgliederbereich</h1>
 
         {/* A confirmation link lands here while nobody is signed in, so
