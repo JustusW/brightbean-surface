@@ -86,6 +86,12 @@ export interface MemberAccount {
    *  and their Erfüllungsgehilfen, who are neither admins nor, in the
    *  second case, holders of any office at all. */
   can_answer: boolean;
+  /** Whether to offer the link to Brightbean, the club's social media
+   *  tool. Unlike the two above, the browser holding this decides only
+   *  whether a LINK is drawn: nginx asks the server for the same fact
+   *  before it will forward a single request to Brightbean, so editing
+   *  this flag in a browser buys nothing at all. */
+  can_social: boolean;
 }
 
 /** One person who has signed up, as the board sees them. */
@@ -107,6 +113,9 @@ export interface Registration {
    *  answering the public are different jobs, and the second is for the
    *  Vorstand and their Erfüllungsgehilfen. */
   can_answer: boolean;
+  /** Whether they may use Brightbean. The heaviest of the three: it is
+   *  the key to the club's Instagram, Facebook and YouTube. */
+  can_social: boolean;
 }
 
 /** One thing a visitor typed into the contact bubble. */
@@ -234,13 +243,21 @@ export const api = {
     get<{ members: Registration[] }>("/api/auth/registrations"),
   decide: (
     email: string,
-    what: "approve" | "revoke" | "delete" | "answer" | "unanswer",
+    what:
+      | "approve"
+      | "revoke"
+      | "delete"
+      | "answer"
+      | "unanswer"
+      | "social"
+      | "unsocial",
   ) =>
     post<{
       email: string;
       approved?: boolean;
       deleted?: boolean;
       can_answer?: boolean;
+      can_social?: boolean;
     }>("/api/auth/registrations/decide", { email, what }),
 
   // ---- the contact bubble ---------------------------------------------

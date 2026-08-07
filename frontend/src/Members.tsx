@@ -54,7 +54,14 @@ function Board({
 
   const decide = async (
     email: string,
-    what: "approve" | "revoke" | "delete" | "answer" | "unanswer",
+    what:
+      | "approve"
+      | "revoke"
+      | "delete"
+      | "answer"
+      | "unanswer"
+      | "social"
+      | "unsocial",
   ) => {
     setBusy(email);
     setFailed("");
@@ -138,6 +145,10 @@ function Board({
                     be admins and, in the second case, hold no office
                     at all. */}
                 {r.can_answer && " · Anfragen"}
+                {/* THE HEAVIEST OF THE THREE, so it is named on the
+                    row: whoever holds it can post as the club on every
+                    channel Brightbean is connected to. */}
+                {r.can_social && " · Social Media"}
                 {!r.active && " · gesperrt"}
                 {/* Said only when it is NOT true. A verified address is
                     the ordinary case and does not need announcing; an
@@ -178,6 +189,23 @@ function Board({
                   {r.can_answer
                     ? "Anfragen entziehen"
                     : "Anfragen zuweisen"}
+                </button>
+                {/* AND THE SOCIAL MEDIA ROLE, on the same terms and for
+                    the same reason the enquiries one is here: with one
+                    member in the club, a role nobody can grant to
+                    themselves is a role nobody can ever hold. Taking it
+                    from yourself strands nobody — unlike admin, which
+                    is the privilege that grants privileges. */}
+                <button
+                  className={r.can_social ? "regrevoke" : "regok"}
+                  disabled={busy === r.email}
+                  onClick={() =>
+                    decide(r.email, r.can_social ? "unsocial" : "social")
+                  }
+                >
+                  {r.can_social
+                    ? "Social Media entziehen"
+                    : "Social Media zuweisen"}
                 </button>
               </>
             ) : confirming === r.email ? (
@@ -234,6 +262,26 @@ function Board({
                     {r.can_answer
                       ? "Anfragen entziehen"
                       : "Anfragen zuweisen"}
+                  </button>
+                )}
+                {/* THE SOCIAL MEDIA ROLE. Offered only to somebody
+                    already approved, like the enquiries one — and it
+                    matters more here: this is not a menu item but a
+                    door. nginx asks the server for this flag before it
+                    will forward a single request to Brightbean, so
+                    taking it away shuts them out on their very next
+                    click rather than at their next login. */}
+                {r.approved && (
+                  <button
+                    className={r.can_social ? "regrevoke" : "regok"}
+                    disabled={busy === r.email}
+                    onClick={() =>
+                      decide(r.email, r.can_social ? "unsocial" : "social")
+                    }
+                  >
+                    {r.can_social
+                      ? "Social Media entziehen"
+                      : "Social Media zuweisen"}
                   </button>
                 )}
                 {/* DELETE IS ALWAYS OFFERED, approved or not — Art. 17
@@ -809,6 +857,20 @@ export default function Members() {
           {member.approved && forum && (
             <a className="memberforum" href={`${forum}/session/sso`}>
               Zum Vereinsforum
+            </a>
+          )}
+
+          {/* BRIGHTBEAN, for whoever looks after the club's channels.
+              A path on THIS host rather than a host of its own, which
+              is what lets the session cookie be sent with it — nginx
+              asks this site who you are before forwarding anything,
+              so the tool never sees an unauthenticated request.
+
+              Shown on can_social alone: approval is already implied,
+              because granting the role approves the member. */}
+          {member.can_social && (
+            <a className="memberforum" href="/brightbean/">
+              Social Media verwalten
             </a>
           )}
 

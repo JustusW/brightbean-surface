@@ -169,6 +169,29 @@ class Member(Base):
                                              server_default=text("false"),
                                              default=False)
 
+    # MAY USE BRIGHTBEAN — the club's social media tool.
+    #
+    # A THIRD CAPABILITY, and separate from the other two for the same
+    # reason they are separate from each other: administering accounts,
+    # answering the public and publishing to the club's Instagram are
+    # three different jobs. One person holding all three is a fact about
+    # that person, not about the model.
+    #
+    # THIS ONE CARRIES MORE THAN THE OTHERS. Brightbean holds every
+    # OAuth token for the club's social accounts, so whoever holds this
+    # can post as the club everywhere it publishes. It is also the flag
+    # a reverse proxy consults before letting a request reach Brightbean
+    # at all — so revoking it does not merely hide a button, it closes
+    # the door on the next request.
+    #
+    # server_default, like the two above and for the identical reason:
+    # PostgreSQL refuses a NOT NULL column added to a populated table
+    # with no value for the rows already there, and `default=` emits no
+    # DDL.
+    can_social: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                             server_default=text("false"),
+                                             default=False)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now())
 

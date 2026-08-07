@@ -235,6 +235,14 @@ def _account(member: Member) -> dict:
         # reason: app/enquiry.py asks the column again on every call and
         # answers 404 to anybody without it.
         "can_answer": member.can_answer,
+        # WHETHER THEY MAY USE BRIGHTBEAN, the club's social media tool.
+        #
+        # THIS ONE IS NOT MERELY A BUTTON. nginx asks the server for it
+        # before letting a request reach Brightbean at all, so it is a
+        # door rather than a menu item — see /social/check below. What
+        # the browser is told here only decides whether the link is
+        # shown.
+        "can_social": member.can_social,
     }
 
 
@@ -753,6 +761,59 @@ def me(member: Member | None = Depends(current_member)) -> JSONResponse:
     return JSONResponse(_account(member))
 
 
+@router.get("/social/check")
+def social_check(member: Member | None = Depends(current_member)) -> Response:
+    """THE DOOR IN FRONT OF BRIGHTBEAN. Asked by nginx, not by a browser.
+
+    Brightbean holds every OAuth token for the club's social accounts,
+    and it is about to stop being tailnet-only. What replaces the tailnet
+    is this: nginx makes a subrequest here for EVERY request to
+    /brightbean, and forwards nothing until it gets a yes. An
+    unauthorised request is refused by the web server and never reaches
+    Django at all — which is a stronger position than an application
+    checking its own sessions, because it holds even for a URL nobody
+    remembered to protect.
+
+    THREE ANSWERS, AND THE DIFFERENCE MATTERS TO THE PERSON:
+
+      401  nobody is signed in       -> nginx sends them to sign in
+      403  signed in, not allowed    -> nginx sends them to a German
+                                        explanation rather than to a
+                                        login form they have already used
+      204  yes, and here is who      -> X-Member carries the address,
+                                        which nginx passes to Brightbean
+                                        as the authenticated user
+
+    THE HEADER IS THE WHOLE AUTHENTICATION on the other side, so two
+    things must both hold and neither is this file's to enforce: nginx
+    must STRIP any X-Member arriving from the client, or the header is a
+    login form; and Brightbean must be reachable ONLY through nginx, or
+    the header can simply be sent to it directly. Both are configured in
+    the gate — see _oauth_nginx_body() — and both are the reason
+    Brightbean moves to loopback in the same change.
+
+    EVERY CONDITION IS RE-ASKED HERE. is_active and is_approved are not
+    implied by can_social: a revoked member keeps whatever columns they
+    had, and this must close on the very next request rather than at the
+    next login.
+    """
+    if member is None:
+        return Response(status_code=401)
+    if not member.is_active or not member.is_approved \
+            or not member.can_social:
+        return Response(status_code=403)
+    return Response(
+        status_code=204,
+        headers={
+            "X-Member": member.email,
+            # A door must never be cached. nginx caches auth_request
+            # replies when told to; nothing here says it may, and this
+            # says so out loud in case a future config does.
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 @router.post("/verify")
 def verify(payload: dict = Body(default={}),
            db: DbSession = Depends(session),
@@ -1076,6 +1137,11 @@ def registrations(_: Member = Depends(require_admin),
             # Vorstand and their Erfüllungsgehilfen — which is neither
             # the set of admins nor any elected body.
             "can_answer": m.can_answer,
+            # WHETHER THEY MAY USE BRIGHTBEAN. The heaviest of the
+            # three: it is the key to the club's Instagram, Facebook
+            # and YouTube, and it is what nginx consults before letting
+            # a request reach the tool at all.
+            "can_social": m.can_social,
             # WHETHER THE ADDRESS WAS EVER PROVEN, which is exactly the
             # question the board is answering when it approves somebody.
             # An unverified address is not a reason to refuse — the club
@@ -1107,11 +1173,12 @@ def decide(payload: dict = Body(default={}),
     """
     email = (payload.get("email", "") or "").strip().lower()
     verb = (payload.get("what", "") or "").strip().lower()
-    if verb not in ("approve", "revoke", "delete", "answer", "unanswer"):
+    if verb not in ("approve", "revoke", "delete", "answer", "unanswer",
+                    "social", "unsocial"):
         raise HTTPException(
             status_code=400,
-            detail="what muss approve, revoke, delete, answer oder "
-                   "unanswer sein.")
+            detail="what muss approve, revoke, delete, answer, unanswer, "
+                   "social oder unsocial sein.")
 
     member = db.scalar(select(Member).where(Member.email == email))
     if member is None:
@@ -1146,6 +1213,19 @@ def decide(payload: dict = Body(default={}),
         db.commit()
         return JSONResponse({"email": email, "deleted": True})
 
+    if verb in ("social", "unsocial"):
+        member.can_social = verb == "social"
+        # GRANTING IT LETS THEM IN TOO, mirroring the enquiries role and
+        # is_admin before it: somebody who may use Brightbean but cannot
+        # sign in holds a permission they can never reach, which reads
+        # as a broken button rather than a half-made decision.
+        if member.can_social:
+            member.is_approved = True
+        db.commit()
+        return JSONResponse({"email": member.email,
+                             "can_social": member.can_social,
+                             "approved": member.is_approved})
+
     if verb in ("answer", "unanswer"):
         member.can_answer = verb == "answer"
         # GRANTING IT ALSO LETS THEM IN, mirroring what members.py does
@@ -1161,12 +1241,16 @@ def decide(payload: dict = Body(default={}),
                              "approved": member.is_approved})
 
     member.is_approved = verb == "approve"
-    # TAKING SOMEBODY'S ACCESS AWAY TAKES THIS WITH IT. Leaving the flag
+    # TAKING SOMEBODY'S ACCESS AWAY TAKES THESE WITH IT. Leaving a flag
     # set on a revoked account would be a permission lying in wait for
-    # the day somebody is approved again for an unrelated reason.
+    # the day somebody is approved again for an unrelated reason — and
+    # can_social is the one that would be waiting with the keys to the
+    # club's Instagram.
     if verb == "revoke":
         member.can_answer = False
+        member.can_social = False
     db.commit()
     return JSONResponse({"email": member.email,
                          "approved": member.is_approved,
-                         "can_answer": member.can_answer})
+                         "can_answer": member.can_answer,
+                         "can_social": member.can_social})
