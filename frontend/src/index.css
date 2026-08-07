@@ -915,8 +915,13 @@ main > .empty { margin-top: 40px; }
    accounts for it. Deliberately plain: this is a form, and a form's job
    is to be obvious. */
 
+/* 1200 RATHER THAN 1080, and only here. The rest of the site is prose
+   and photographs, where a narrow measure is the point; this is the one
+   page that is a TABLE OF PEOPLE — an address, what they can do, and the
+   controls for it — and at 1080 the row wrapped as soon as somebody had
+   more than one role. */
 .members {
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 48px 24px 64px;
 }
@@ -1217,8 +1222,12 @@ main > .empty { margin-top: 40px; }
 /* Only ever rendered for an admin. Wider than the login card because it
    is a list that grows, where .memberbox is 440px measured for a form. */
 
+/* THE CARD WIDENS WITH THE COLUMN, or widening the column achieves
+   nothing: this is what the reader actually sees, and at 700 it stayed
+   700 inside a 1200 page. Capped at the same 1200 so the two numbers
+   cannot drift apart; the column's padding is what it settles at. */
 .board {
-  max-width: 700px;
+  max-width: 1200px;
   margin: 28px auto 0;
   background: var(--paper);
   border: 1px solid var(--line);
@@ -1293,6 +1302,30 @@ main > .empty { margin-top: 40px; }
   border: 1px solid var(--line);
 }
 .regs button:disabled { opacity: 0.5; cursor: default; }
+
+/* THE GRANTS ARE ICONS, AND SQUARE. Four German role controls spelled
+   out — "Anfragen zuweisen", "Social Media entziehen" and their
+   opposites — ran to well over 400px on one row, so a member holding
+   two roles pushed their own address into a wrap. As glyphs they are
+   40px each and the row reads as a name followed by its controls.
+   
+   40x40 KEEPS THE HIT AREA. Everything on this site is at least 40px
+   for a thumb, and shrinking the label must not shrink the target.
+   
+   THE WORDS ARE NOT GONE, they have moved to title and aria-label — see
+   Members.tsx. A screen reader still hears the full German sentence and
+   a pointer still gets the tooltip; only the drawn text is spared. An
+   icon-only button with no accessible name is the version of this that
+   would be worth refusing. */
+.regs button.icon {
+  width: 40px;
+  padding: 0;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.regs button.icon svg { width: 18px; height: 18px; }
 
 .regs .regok { background: var(--sky-deep); border-color: var(--sky-deep);
                color: #fff; }
@@ -1541,7 +1574,9 @@ main > .empty { margin-top: 40px; }
  * is the same job: a short list somebody works through and then leaves
  * alone. */
 
-.enquiries { max-width: 700px; margin: 28px auto 0; }
+/* Same width as the board below it — they sit one above the other on
+   the same page, and two cards of different widths reads as a mistake. */
+.enquiries { max-width: 1200px; margin: 28px auto 0; }
 
 .enq {
   background: var(--paper);

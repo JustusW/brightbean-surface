@@ -1,5 +1,23 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+/* THE ROLE CONTROLS ARE ICONS. Spelled out in German they ran past
+   400px on a single row and pushed the member's own address into a
+   wrap — see .regs button.icon in index.css. Each keeps its full
+   sentence in title and aria-label, so nothing is lost to anybody
+   reading with a screen reader or hovering with a pointer.
+   
+   THE PAIRS ARE DIFFERENT GLYPHS, not one glyph in two colours. The
+   shepherd is red-blind; a control whose state is carried by hue alone
+   is a control they cannot read. Granted and revoked differ in SHAPE. */
+import {
+  Megaphone,
+  MegaphoneOff,
+  MessageSquareOff,
+  MessageSquarePlus,
+  Trash2,
+  UserCheck,
+  UserX,
+} from "lucide-react";
 import { ApiError, api } from "./api";
 import type { Enquiry, MemberAccount, Registration } from "./api";
 
@@ -180,15 +198,23 @@ function Board({
                     different permission and taking it from yourself
                     strands nobody. */}
                 <button
-                  className={r.can_answer ? "regrevoke" : "regok"}
+                  className={`icon ${r.can_answer ? "regrevoke" : "regok"}`}
                   disabled={busy === r.email}
+                  title={
+                    r.can_answer ? "Anfragen entziehen" : "Anfragen zuweisen"
+                  }
+                  aria-label={
+                    r.can_answer ? "Anfragen entziehen" : "Anfragen zuweisen"
+                  }
                   onClick={() =>
                     decide(r.email, r.can_answer ? "unanswer" : "answer")
                   }
                 >
-                  {r.can_answer
-                    ? "Anfragen entziehen"
-                    : "Anfragen zuweisen"}
+                  {r.can_answer ? (
+                    <MessageSquareOff aria-hidden="true" />
+                  ) : (
+                    <MessageSquarePlus aria-hidden="true" />
+                  )}
                 </button>
                 {/* AND THE SOCIAL MEDIA ROLE, on the same terms and for
                     the same reason the enquiries one is here: with one
@@ -197,15 +223,27 @@ function Board({
                     from yourself strands nobody — unlike admin, which
                     is the privilege that grants privileges. */}
                 <button
-                  className={r.can_social ? "regrevoke" : "regok"}
+                  className={`icon ${r.can_social ? "regrevoke" : "regok"}`}
                   disabled={busy === r.email}
+                  title={
+                    r.can_social
+                      ? "Social Media entziehen"
+                      : "Social Media zuweisen"
+                  }
+                  aria-label={
+                    r.can_social
+                      ? "Social Media entziehen"
+                      : "Social Media zuweisen"
+                  }
                   onClick={() =>
                     decide(r.email, r.can_social ? "unsocial" : "social")
                   }
                 >
-                  {r.can_social
-                    ? "Social Media entziehen"
-                    : "Social Media zuweisen"}
+                  {r.can_social ? (
+                    <MegaphoneOff aria-hidden="true" />
+                  ) : (
+                    <Megaphone aria-hidden="true" />
+                  )}
                 </button>
               </>
             ) : confirming === r.email ? (
@@ -230,19 +268,23 @@ function Board({
               <>
                 {r.approved ? (
                   <button
-                    className="regrevoke"
+                    className="icon regrevoke"
                     disabled={busy === r.email}
+                    title="Zugang entziehen"
+                    aria-label={`Zugang für ${r.email} entziehen`}
                     onClick={() => decide(r.email, "revoke")}
                   >
-                    Zugang entziehen
+                    <UserX aria-hidden="true" />
                   </button>
                 ) : (
                   <button
-                    className="regok"
+                    className="icon regok"
                     disabled={busy === r.email}
+                    title="Freischalten"
+                    aria-label={`${r.email} freischalten`}
                     onClick={() => decide(r.email, "approve")}
                   >
-                    Freischalten
+                    <UserCheck aria-hidden="true" />
                   </button>
                 )}
                 {/* WHO MAY DEAL WITH THE PUBLIC. Offered only to
@@ -253,15 +295,27 @@ function Board({
                     offering the odd order. */}
                 {r.approved && (
                   <button
-                    className={r.can_answer ? "regrevoke" : "regok"}
+                    className={`icon ${r.can_answer ? "regrevoke" : "regok"}`}
                     disabled={busy === r.email}
+                    title={
+                      r.can_answer
+                        ? "Anfragen entziehen"
+                        : "Anfragen zuweisen"
+                    }
+                    aria-label={
+                      r.can_answer
+                        ? `Anfragen für ${r.email} entziehen`
+                        : `Anfragen für ${r.email} zuweisen`
+                    }
                     onClick={() =>
                       decide(r.email, r.can_answer ? "unanswer" : "answer")
                     }
                   >
-                    {r.can_answer
-                      ? "Anfragen entziehen"
-                      : "Anfragen zuweisen"}
+                    {r.can_answer ? (
+                      <MessageSquareOff aria-hidden="true" />
+                    ) : (
+                      <MessageSquarePlus aria-hidden="true" />
+                    )}
                   </button>
                 )}
                 {/* THE SOCIAL MEDIA ROLE. Offered only to somebody
@@ -273,27 +327,40 @@ function Board({
                     click rather than at their next login. */}
                 {r.approved && (
                   <button
-                    className={r.can_social ? "regrevoke" : "regok"}
+                    className={`icon ${r.can_social ? "regrevoke" : "regok"}`}
                     disabled={busy === r.email}
+                    title={
+                      r.can_social
+                        ? "Social Media entziehen"
+                        : "Social Media zuweisen"
+                    }
+                    aria-label={
+                      r.can_social
+                        ? `Social Media für ${r.email} entziehen`
+                        : `Social Media für ${r.email} zuweisen`
+                    }
                     onClick={() =>
                       decide(r.email, r.can_social ? "unsocial" : "social")
                     }
                   >
-                    {r.can_social
-                      ? "Social Media entziehen"
-                      : "Social Media zuweisen"}
+                    {r.can_social ? (
+                      <MegaphoneOff aria-hidden="true" />
+                    ) : (
+                      <Megaphone aria-hidden="true" />
+                    )}
                   </button>
                 )}
                 {/* DELETE IS ALWAYS OFFERED, approved or not — Art. 17
                     DSGVO is a right the person has whether or not the
                     club ever let them in. */}
                 <button
-                  className="regask"
+                  className="icon regask"
                   disabled={busy === r.email}
                   onClick={() => setConfirming(r.email)}
+                  title="Löschen"
                   aria-label={`Konto ${r.email} löschen`}
                 >
-                  Löschen
+                  <Trash2 aria-hidden="true" />
                 </button>
               </>
             )}
