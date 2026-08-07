@@ -1327,16 +1327,48 @@ main > .empty { margin-top: 40px; }
 }
 .regs button.icon svg { width: 18px; height: 18px; }
 
-.regs .regok { background: var(--sky-deep); border-color: var(--sky-deep);
-               color: #fff; }
-.regs .regok:hover:not(:disabled) { background: var(--sky);
-                                    border-color: var(--sky); }
+/* THE ROLE CONTROLS SHOW THE STATE, NOT THE ACTION — and that is an
+   inversion of what was here.
+ *
+ * Before: the button was styled by what pressing it WOULD DO. Somebody
+ * without a role got a solid blue "grant" button and somebody with it
+ * got a quiet one, so the loudest thing on the row was always the
+ * permission the member did NOT have. Read down the list, the strong
+ * marks pointed at the wrong people.
+ *
+ * Now: HOLDING the role is the strong one. The row reads as a state -
+ * these are the roles this person has - and what pressing does is in
+ * the tooltip and the accessible name, where an action belongs.
+ *
+ * BORDER ONLY. Four filled buttons per row made the list look like a
+ * toolbar; outlined, the addresses lead and the controls sit behind
+ * them.
+ *
+ * AND THE DIFFERENCE IS LIGHTNESS, NOT HUE. The shepherd is red-blind,
+ * so the pair is near-black against pale grey rather than two colours -
+ * legible under any colour vision, and legible in a screenshot. The
+ * icons differ in SHAPE as well, so the state survives even if the
+ * border is missed entirely. */
 
-/* DELIBERATELY QUIET. Taking somebody's access away is a real act and
-   should not be the easiest-looking button on the row. */
-.regs .regrevoke { background: var(--wash); color: var(--ink-soft); }
-.regs .regrevoke:hover:not(:disabled) { border-color: #c0392b;
-                                        color: #7d241a; }
+.regs .granted,
+.regs .ungranted { background: transparent; }
+
+/* HELD. */
+.regs .granted {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.regs .granted:hover:not(:disabled) { background: var(--wash); }
+
+/* NOT HELD: present, pressable, and not asking for attention. */
+.regs .ungranted {
+  border-color: var(--line);
+  color: var(--muted);
+}
+.regs .ungranted:hover:not(:disabled) {
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
+}
 
 .regs .selbst {
   color: var(--muted);

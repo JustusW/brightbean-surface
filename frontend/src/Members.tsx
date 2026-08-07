@@ -198,7 +198,7 @@ function Board({
                     different permission and taking it from yourself
                     strands nobody. */}
                 <button
-                  className={`icon ${r.can_answer ? "regrevoke" : "regok"}`}
+                  className={`icon ${r.can_answer ? "granted" : "ungranted"}`}
                   disabled={busy === r.email}
                   title={
                     r.can_answer ? "Anfragen entziehen" : "Anfragen zuweisen"
@@ -223,7 +223,7 @@ function Board({
                     from yourself strands nobody — unlike admin, which
                     is the privilege that grants privileges. */}
                 <button
-                  className={`icon ${r.can_social ? "regrevoke" : "regok"}`}
+                  className={`icon ${r.can_social ? "granted" : "ungranted"}`}
                   disabled={busy === r.email}
                   title={
                     r.can_social
@@ -268,7 +268,7 @@ function Board({
               <>
                 {r.approved ? (
                   <button
-                    className="icon regrevoke"
+                    className="icon granted"
                     disabled={busy === r.email}
                     title="Zugang entziehen"
                     aria-label={`Zugang für ${r.email} entziehen`}
@@ -278,7 +278,7 @@ function Board({
                   </button>
                 ) : (
                   <button
-                    className="icon regok"
+                    className="icon ungranted"
                     disabled={busy === r.email}
                     title="Freischalten"
                     aria-label={`${r.email} freischalten`}
@@ -295,7 +295,7 @@ function Board({
                     offering the odd order. */}
                 {r.approved && (
                   <button
-                    className={`icon ${r.can_answer ? "regrevoke" : "regok"}`}
+                    className={`icon ${r.can_answer ? "granted" : "ungranted"}`}
                     disabled={busy === r.email}
                     title={
                       r.can_answer
@@ -327,7 +327,7 @@ function Board({
                     click rather than at their next login. */}
                 {r.approved && (
                   <button
-                    className={`icon ${r.can_social ? "regrevoke" : "regok"}`}
+                    className={`icon ${r.can_social ? "granted" : "ungranted"}`}
                     disabled={busy === r.email}
                     title={
                       r.can_social
