@@ -250,12 +250,20 @@ export const api = {
       | "answer"
       | "unanswer"
       | "social"
-      | "unsocial",
+      | "unsocial"
+      /* THE HEAVIEST PAIR, and the only one that hands over the power
+         that granted it: a new admin can take anybody's admin away
+         except their own. The server refuses "unadmin" on your OWN
+         account for that reason — see decide() — so the club can never
+         be left with nobody able to grant anything. */
+      | "admin"
+      | "unadmin",
   ) =>
     post<{
       email: string;
       approved?: boolean;
       deleted?: boolean;
+      admin?: boolean;
       can_answer?: boolean;
       can_social?: boolean;
     }>("/api/auth/registrations/decide", { email, what }),

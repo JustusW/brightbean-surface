@@ -1174,11 +1174,11 @@ def decide(payload: dict = Body(default={}),
     email = (payload.get("email", "") or "").strip().lower()
     verb = (payload.get("what", "") or "").strip().lower()
     if verb not in ("approve", "revoke", "delete", "answer", "unanswer",
-                    "social", "unsocial"):
+                    "social", "unsocial", "admin", "unadmin"):
         raise HTTPException(
             status_code=400,
             detail="what muss approve, revoke, delete, answer, unanswer, "
-                   "social oder unsocial sein.")
+                   "social, unsocial, admin oder unadmin sein.")
 
     member = db.scalar(select(Member).where(Member.email == email))
     if member is None:
@@ -1191,11 +1191,18 @@ def decide(payload: dict = Body(default={}),
     # — which is exactly the situation the website version exists to
     # avoid. Somebody else's admin can still be taken away, on the
     # server, with members.py.
-    if member.id == admin.id and verb in ("revoke", "delete"):
+    # "unadmin" JOINS THE TWO ABOVE, and for exactly the reason the
+    # paragraph above gives: taking your own admin away is the one move
+    # that can leave the club with nobody able to grant anything. It is
+    # now reachable from the website — the button exists — so the
+    # refusal has to be here rather than implied by there being no way
+    # to ask.
+    if member.id == admin.id and verb in ("revoke", "delete", "unadmin"):
         raise HTTPException(
             status_code=409,
-            detail="Du kannst Dein eigenes Konto hier nicht sperren oder "
-                   "löschen.")
+            detail="Du kannst Dir selbst weder den Zugang noch die "
+                   "Administratorrechte entziehen und Dein eigenes Konto "
+                   "hier nicht löschen.")
 
     if verb == "delete":
         # DELETING IS REAL, AND IT IS SUPPOSED TO BE. I had written that
@@ -1212,6 +1219,30 @@ def decide(payload: dict = Body(default={}),
         db.delete(member)
         db.commit()
         return JSONResponse({"email": email, "deleted": True})
+
+    if verb in ("admin", "unadmin"):
+        # THE HEAVIEST GRANT ON THIS PAGE, and the only one that can be
+        # turned against the person making it: a new admin can take
+        # anybody's admin away except their own. That is deliberate and
+        # it is what makes the club recoverable — but it means this
+        # button hands over the same power the presser holds.
+        #
+        # UNTIL NOW THERE WAS NO BUTTON AT ALL. It could only be done
+        # with members.py, inside the container, by somebody with the
+        # server. The shepherd asked for it in the Nutzerverwaltung, so
+        # it moves to where the board already is — the same argument
+        # that put approval there.
+        member.is_admin = verb == "admin"
+        # AN ADMIN WHO CANNOT GET IN IS NOT AN ADMIN. Exactly what
+        # members.py does, and for the same reason the two roles below
+        # do it: a permission somebody can never reach reads as a broken
+        # button rather than as a decision half made.
+        if member.is_admin:
+            member.is_approved = True
+        db.commit()
+        return JSONResponse({"email": member.email,
+                             "admin": member.is_admin,
+                             "approved": member.is_approved})
 
     if verb in ("social", "unsocial"):
         member.can_social = verb == "social"
@@ -1249,8 +1280,27 @@ def decide(payload: dict = Body(default={}),
     if verb == "revoke":
         member.can_answer = False
         member.can_social = False
+        # AND THE ADMIN FLAG, which it did NOT clear before this change —
+        # a gap rather than a decision, and a sharp one.
+        #
+        # require_admin() tests is_admin AND NOTHING ELSE. It does not
+        # look at is_approved. So "Zugang entziehen" on another admin
+        # left them holding every administrative endpoint on the site:
+        # the button said they were put out, and they could still
+        # approve members, grant Social Media and delete accounts. The
+        # only thing they lost was the welcome page.
+        #
+        # It is also precisely the case the paragraph above was written
+        # about — a permission lying in wait for the day somebody is
+        # approved again for an unrelated reason — and is_admin is the
+        # one that would be waiting with the power to grant the others.
+        #
+        # Revoking your own is refused above, so this cannot strand the
+        # club by accident.
+        member.is_admin = False
     db.commit()
     return JSONResponse({"email": member.email,
                          "approved": member.is_approved,
+                         "admin": member.is_admin,
                          "can_answer": member.can_answer,
                          "can_social": member.can_social})

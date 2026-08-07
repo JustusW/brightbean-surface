@@ -25,6 +25,12 @@ import {
   MegaphoneOff,
   MessageSquare,
   MessageSquareOff,
+  /* THE ADMIN PAIR. A shield for somebody who holds it, a struck-through
+     shield for somebody who does not — the same "plain for yes, off for
+     no" rule the other two pairs follow, and different SHAPES rather
+     than one shape in two colours. */
+  ShieldCheck,
+  ShieldOff,
   Trash2,
   UserCheck,
   UserX,
@@ -91,7 +97,9 @@ function Board({
       | "answer"
       | "unanswer"
       | "social"
-      | "unsocial",
+      | "unsocial"
+      | "admin"
+      | "unadmin",
   ) => {
     setBusy(email);
     setFailed("");
@@ -370,6 +378,59 @@ function Board({
                     )}
                   </button>
                 )}
+                {/* ADMINISTRATOR. The heaviest thing on this row, and
+                    until now it had no button at all: it could only be
+                    done with members.py, inside the container, by
+                    somebody with the server. Asked for here, so it is
+                    here.
+
+                    WHAT IT HANDS OVER. An admin can approve members,
+                    grant every role including this one, and delete
+                    accounts. They can also take THIS away from anybody
+                    but themselves — so granting it gives away the power
+                    that granted it. That is deliberate: it is what
+                    stops the club being locked out by one person, and
+                    it is why the server refuses "unadmin" on your own
+                    account rather than leaving it to this page.
+
+                    ONE CLICK, LIKE THE OTHER TWO ROLES, and not the
+                    two-stage confirmation that guards Löschen. That
+                    stage is reserved for what cannot be undone; this is
+                    reversible by any admin in one click, and a page
+                    where everything asks "really?" is a page where
+                    nobody reads the question. Say the word if you want
+                    it behind a confirmation anyway.
+
+                    OFFERED ONLY TO SOMEBODY ALREADY APPROVED, like the
+                    other two — granting it approves them server-side in
+                    any case, so this only avoids offering the odd
+                    order. */}
+                {r.approved && (
+                  <button
+                    className={`icon ${r.admin ? "granted" : "ungranted"}`}
+                    disabled={busy === r.email}
+                    title={
+                      r.admin
+                        ? "Administratorrechte entziehen"
+                        : "Zum Administrator machen"
+                    }
+                    aria-label={
+                      r.admin
+                        ? `Administratorrechte für ${r.email} entziehen`
+                        : `${r.email} zum Administrator machen`
+                    }
+                    onClick={() =>
+                      decide(r.email, r.admin ? "unadmin" : "admin")
+                    }
+                  >
+                    {r.admin ? (
+                      <ShieldCheck aria-hidden="true" />
+                    ) : (
+                      <ShieldOff aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+
                 {/* DELETE IS ALWAYS OFFERED, approved or not — Art. 17
                     DSGVO is a right the person has whether or not the
                     club ever let them in. */}
