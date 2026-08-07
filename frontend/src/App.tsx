@@ -432,11 +432,27 @@ function Shell({ site }: { site: Site | null }) {
 
       <Routes>
         <Route path="/" element={<Feed site={site} />} />
-        {/* NOT IN THE NAVIGATION, and that is not an oversight: the
-            navigation is built from /api/site, so a page appears there
-            when the configuration says so. The members area is reachable
-            by address until the club decides to link it. */}
+        {/* THE MEMBERS AREA AND ITS TWO SUBPAGES.
+ 
+            Not built from /api/site like the others: those are Markdown
+            pages fetched by slug, and these are browser-side routes with
+            no /api/page behind them. Putting them in that list would
+            render "Seite nicht gefunden".
+
+            ONE COMPONENT, THREE ADDRESSES. Members reads :unterseite and
+            renders the overview, the enquiries console or the user
+            administration — because all three need the same answer to
+            "who is this", and three routes fetching /api/me separately
+            would ask three times and could disagree.
+
+            THE ADDRESSES ARE REAL, which is the point of doing it with
+            routes rather than a tab: /mitglieder/anfragen can be
+            bookmarked, reloaded, and sent to the other person who holds
+            the role. What it CANNOT do is grant anything — the role is
+            checked here to decide what to draw, and again on the server
+            for every request, which is the check that counts. */}
         <Route path="/mitglieder" element={<Members />} />
+        <Route path="/mitglieder/:unterseite" element={<Members />} />
         <Route path="/:slug" element={<StaticPage site={site} />} />
       </Routes>
 

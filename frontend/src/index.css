@@ -955,6 +955,54 @@ main > .empty { margin-top: 40px; }
   margin: 0 0 20px;
 }
 
+/* ---- the overview: what is waiting -----------------------------------
+ * TWO LINES AND TWO LINKS, and it replaces two whole consoles.
+ *
+ * Signing in used to land on every list in the club stacked one above
+ * the other, so the question somebody actually opens this page with —
+ * "is there anything for me to do" — had to be answered by scrolling
+ * through the answers themselves. The lists have addresses of their own
+ * now (/mitglieder/anfragen, /mitglieder/nutzerverwaltung); this is the
+ * count, next to the way there.
+ *
+ * The count sits in the same .wartet badge the consoles use for it. A
+ * summary drawn differently from the page it summarises is a summary
+ * that will eventually be read as a different number. */
+
+.memberbox.aufgaben { margin-top: 28px; }
+
+.aufgaben ul { list-style: none; margin: 0; padding: 0; }
+
+.aufgaben li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Wraps rather than squeezes: on a phone the badge drops under the
+     link at full size instead of shrinking. */
+  flex-wrap: wrap;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.aufgaben li:last-child { border-bottom: 0; }
+
+.aufgaben li a {
+  display: inline-flex;
+  align-items: center;
+  /* 44px like every control on this site, and margin-right: auto is
+     what pushes the count to the far edge so the column of numbers can
+     be read straight down. */
+  min-height: 44px;
+  margin-right: auto;
+  font-weight: 600;
+  font-size: 16.5px;
+}
+
+/* NOTHING TO DO, said quietly. It is genuinely good news and must not
+   be drawn like the badge that means the opposite — so it is muted grey
+   text rather than a pill, and the two cannot be confused at a glance
+   or by somebody who reads the pill's colour differently. */
+.aufgaben .still { color: var(--muted); font-size: 14.5px; }
+
 /* ---- the members' submenu bar ----------------------------------------
  * CHROME, NOT CONTENT, and that distinction is the whole of this block.
  *
@@ -1035,6 +1083,30 @@ main > .empty { margin-top: 40px; }
 .membernav a:focus-visible {
   color: var(--ink);
   border-bottom-color: var(--ink);
+}
+
+/* WHERE YOU ARE. Subtle, as asked: the page's own wash behind the item
+   and the rule under it inked in, which is the same treatment the site
+   header gives a hovered link — so the bar has one visual language
+   rather than a second one invented for this row.
+ 
+   THE SELECTOR IS THE ARIA ATTRIBUTE, deliberately, exactly as
+   .membertabs is styled from aria-pressed. The state a screen reader
+   announces and the state the eye sees come from the SAME source, so
+   they cannot drift apart the way a parallel `.aktiv` class eventually
+   would.
+ 
+   AND IT IS NOT A COLOUR. Darkness, a 2px rule and a background — three
+   cues, none of them a hue, because state carried by hue alone is state
+   the shepherd cannot read.
+ 
+   No font-weight change: it would re-measure the item and shift the
+   whole bar sideways every time you moved between pages. */
+.membernav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  background: var(--wash);
+  border-radius: 8px 8px 0 0;
 }
 /* The outward arrow: quiet, and smaller than the word it follows. It
    says "this leaves the page" before it is pressed rather than after. */
@@ -1368,7 +1440,14 @@ main > .empty { margin-top: 40px; }
   box-shadow: var(--shadow);
 }
 
-.board h2 {
+/* ONE HEADING STYLE FOR ALL THREE CONSOLES. This was `.board h2` alone,
+   which meant the enquiries console's own "Anfragen" heading fell back
+   to the browser's default h2 — body font, wrong size, and no room for
+   the count beside it. Two cards on one page with two different heading
+   styles reads as a mistake, and it was one. */
+.board h2,
+.enquiries h2,
+.aufgaben h2 {
   font-family: var(--display);
   font-size: 21px;
   font-weight: 600;
@@ -1381,8 +1460,19 @@ main > .empty { margin-top: 40px; }
 
 /* HOW MANY ARE WAITING, beside the heading. The one number somebody
    opens this page to see, so it should not have to be counted off a
-   list. */
-.board .wartet {
+   list.
+
+   NOT SCOPED TO .board ANY MORE, and that fixes a latent defect rather
+   than merely tidying: the enquiries console has always rendered
+   <span className="wartet">{open} offen</span> in its heading, and with
+   the rule scoped to the board that badge was drawn as plain text —
+   the count nobody could see. The overview's summary uses the same
+   badge, so all three now agree.
+
+   AMBER ON PALE AMBER WITH A BORDER, and the number itself is the
+   information; the colour is emphasis on top of a shape, never the
+   thing being said. */
+.wartet {
   font-family: var(--font);
   font-size: 12.5px;
   font-weight: 700;

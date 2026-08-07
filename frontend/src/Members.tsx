@@ -29,6 +29,7 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "./api";
 import type { Enquiry, MemberAccount, Registration } from "./api";
 
@@ -114,7 +115,7 @@ function Board({
   if (failed && rows === null) {
     return (
       <div className="board">
-        <h2>Registrierungen</h2>
+        <h2>Nutzerverwaltung</h2>
         <p className="membererror" role="alert">
           {failed}
         </p>
@@ -124,7 +125,7 @@ function Board({
   if (rows === null) {
     return (
       <div className="board">
-        <h2>Registrierungen</h2>
+        <h2>Nutzerverwaltung</h2>
         <p className="empty">Lädt…</p>
       </div>
     );
@@ -139,9 +140,17 @@ function Board({
 
   return (
     <div className="board">
+      {/* NUTZERVERWALTUNG, which is what the club calls this and what
+          its address says. It was "Registrierungen", which named the
+          list rather than the job and disagreed with both the submenu
+          entry and /mitglieder/nutzerverwaltung. */}
       <h2>
-        Registrierungen
-        {waiting > 0 && <span className="wartet">{waiting} wartet</span>}
+        Nutzerverwaltung
+        {waiting > 0 && (
+          <span className="wartet">
+            {waiting} {waiting === 1 ? "wartet" : "warten"}
+          </span>
+        )}
       </h2>
 
       {failed && (
@@ -555,6 +564,136 @@ function Enquiries() {
   );
 }
 
+/** WHAT IS WAITING — the whole of the overview page for anybody who
+ *  holds a role, and nothing at all for anybody who does not.
+ *
+ *  THE LISTS THEMSELVES MOVED TO THEIR OWN ADDRESSES. What is left here
+ *  is the one thing somebody opens the members area to find out: is
+ *  there anything for me to do. Two lines and two links, rather than two
+ *  consoles stacked on the welcome card.
+ *
+ *  IT COUNTS THE SAME THINGS THE PAGES THEMSELVES COUNT, from the same
+ *  endpoints — open enquiries, and accounts not yet approved. A summary
+ *  computed differently from the page it summarises is a summary that
+ *  will eventually disagree with it.
+ *
+ *  IT ASKS FOR NOTHING IT MAY NOT HAVE. Each fetch is behind the role
+ *  that permits it, so an ordinary member's overview makes no request
+ *  at all — and the server would answer 404 either way, because a
+ *  member has no business learning these consoles exist.
+ */
+function Aufgaben({ member }: { member: MemberAccount }) {
+  /** null = not asked yet or still asking. The three states are kept
+   *  apart deliberately: "loading", "none open" and "could not ask"
+   *  say different things, and collapsing them turns an outage into a
+   *  quiet afternoon. */
+  const [offen, setOffen] = useState<number | null>(null);
+  const [wartet, setWartet] = useState<number | null>(null);
+  const [failed, setFailed] = useState("");
+
+  useEffect(() => {
+    if (!member.can_answer) return;
+    api
+      .enquiries()
+      .then((r) => setOffen(r.open))
+      .catch((e) =>
+        setFailed(
+          e instanceof ApiError
+            ? e.message
+            : "Die Anfragen lassen sich gerade nicht zählen.",
+        ),
+      );
+  }, [member.can_answer]);
+
+  useEffect(() => {
+    if (!member.admin) return;
+    api
+      .registrations()
+      .then((r) => setWartet(r.members.filter((m) => !m.approved).length))
+      .catch((e) =>
+        setFailed(
+          e instanceof ApiError
+            ? e.message
+            : "Die Konten lassen sich gerade nicht zählen.",
+        ),
+      );
+  }, [member.admin]);
+
+  // NOTHING AT ALL for an ordinary member — not an empty card saying
+  // there is nothing for them, which would only advertise that there is
+  // something for somebody else.
+  if (!member.can_answer && !member.admin) return null;
+
+  return (
+    <div className="memberbox aufgaben">
+      <h2>Zu erledigen</h2>
+
+      {failed && (
+        <p className="membererror" role="alert">
+          {failed}
+        </p>
+      )}
+
+      <ul>
+        {member.can_answer && (
+          <li>
+            <Link to="/mitglieder/anfragen">Anfragen</Link>
+            {offen === null ? (
+              <span className="still">wird gezählt…</span>
+            ) : offen > 0 ? (
+              <span className="wartet">{offen} offen</span>
+            ) : (
+              <span className="still">nichts offen</span>
+            )}
+          </li>
+        )}
+
+        {member.admin && (
+          <li>
+            <Link to="/mitglieder/nutzerverwaltung">Nutzerverwaltung</Link>
+            {wartet === null ? (
+              <span className="still">wird gezählt…</span>
+            ) : wartet > 0 ? (
+              /* THE ONE NUMBER THIS PAGE EXISTS FOR: accounts nobody has
+                 let in yet. Somebody who has registered and heard
+                 nothing is waiting on a person, not on a machine. */
+              <span className="wartet">
+                {wartet} {wartet === 1 ? "wartet" : "warten"} auf
+                Freischaltung
+              </span>
+            ) : (
+              <span className="still">niemand wartet</span>
+            )}
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+/** A subpage this account may not open, or one that is not there.
+ *
+ *  IT SAYS WHICH, and it always offers the way back. A members area
+ *  that answers a mistyped address with a blank page reads as broken —
+ *  and the shepherd has been clear that a refusal nobody is told about
+ *  is the failure this whole area was written to avoid.
+ *
+ *  THIS IS NOT THE GATE. The role is checked again on the server for
+ *  every single request, and a flag the browser holds is a flag the
+ *  browser can edit. Getting past this card gets nobody any data.
+ */
+function Sackgasse({ titel, text }: { titel: string; text: string }) {
+  return (
+    <div className="memberbox">
+      <h1>{titel}</h1>
+      <p className="memberwait">{text}</p>
+      <p className="membernote">
+        <Link to="/mitglieder">Zurück zur Übersicht</Link>
+      </p>
+    </div>
+  );
+}
+
 /** The members area: sign up, sign in, and the welcome page.
  *
  *  BOTH WAYS IN, NOT EITHER. The shepherd's rule — "the or for the
@@ -582,6 +721,13 @@ function Enquiries() {
 type Mode = "login" | "signup";
 
 export default function Members() {
+  /** WHICH OF THE THREE PAGES THIS IS: "" for the overview, "anfragen"
+   *  or "nutzerverwaltung" for the two consoles.
+   *
+   *  From the URL rather than from a piece of state, so the address bar
+   *  and the page can never disagree — the back button, a reload and a
+   *  bookmark all work because there is nothing to restore. */
+  const { unterseite } = useParams();
   const [member, setMember] = useState<MemberAccount | null>(null);
   const [asked, setAsked] = useState(false);
   const [mode, setMode] = useState<Mode>("login");
@@ -911,6 +1057,7 @@ export default function Members() {
 
   // ---- signed in ------------------------------------------------------
   if (member) {
+    const hier = unterseite ?? "";
     return (
       <>
         {/* A SUBMENU BAR — AND IT IS ATTACHED TO THE MENU BAR.
@@ -938,6 +1085,47 @@ export default function Members() {
          * the whole difference between a bar and three buttons. */}
         <nav className="membernav">
           <div className="membernavinner">
+            {/* THE PAGES OF THIS AREA, in the order somebody works
+                through them: where am I, what has the public asked, who
+                is waiting to be let in.
+
+                <Link>, NOT <a>. These are routes this app renders, so a
+                full page load would throw away the answer to "who is
+                this" and fetch it again. It is also what separates them
+                from the two below at a glance: these keep you here, and
+                the ones carrying an arrow do not.
+
+                EACH IS SHOWN ONLY TO SOMEBODY WHO HOLDS THE ROLE. Not
+                shown-and-refused: offering a door that will not open is
+                worse than not mentioning it. The server checks again on
+                every request, which is the check that counts.
+
+                aria-current="page" IS the highlight — the state is
+                announced to a screen reader and drawn from that same
+                attribute (see .membernav a[aria-current] in index.css),
+                so what is said and what is seen cannot drift apart. */}
+            <Link to="/mitglieder" aria-current={hier === "" ? "page" : undefined}>
+              Übersicht
+            </Link>
+
+            {member.can_answer && (
+              <Link
+                to="/mitglieder/anfragen"
+                aria-current={hier === "anfragen" ? "page" : undefined}
+              >
+                Anfragen
+              </Link>
+            )}
+
+            {member.admin && (
+              <Link
+                to="/mitglieder/nutzerverwaltung"
+                aria-current={hier === "nutzerverwaltung" ? "page" : undefined}
+              >
+                Nutzerverwaltung
+              </Link>
+            )}
+
             {/* THE VEREINSFORUM, for members the club has let in.
                 Hidden from everybody else rather than shown and
                 refused: the forum turns away anyone unapproved, so
@@ -988,58 +1176,106 @@ export default function Members() {
         </nav>
 
         <section className="members">
-          <div className="memberbox">
-            <h1>Willkommen</h1>
+          {/* ---- the overview ------------------------------------- */}
+          {/* WHAT IS LEFT HERE IS A GREETING AND A COUNT. The two
+              consoles used to be stacked on this page, so signing in
+              meant landing on every list in the club at once, and the
+              answer to "is there anything for me to do" had to be found
+              by scrolling. They have addresses of their own now; this
+              says how much is waiting behind each, for the people it is
+              waiting on. */}
+          {hier === "" && (
+            <>
+              <div className="memberbox">
+                <h1>Willkommen</h1>
 
-            {/* Good news, announced rather than merely drawn — somebody
-                who has just confirmed an address or set a password needs
-                telling that it worked. */}
-            {notice && (
-              <p className="membernotice" role="status">
-                {notice}
-              </p>
-            )}
-            {error && (
-              <p className="membererror" role="alert">
-                {error}
-              </p>
-            )}
+                {/* Good news, announced rather than merely drawn —
+                    somebody who has just confirmed an address or set a
+                    password needs telling that it worked. */}
+                {notice && (
+                  <p className="membernotice" role="status">
+                    {notice}
+                  </p>
+                )}
+                {error && (
+                  <p className="membererror" role="alert">
+                    {error}
+                  </p>
+                )}
 
-            {member.approved ? (
-              <p>
-                Schön, dass Du da bist. Hier entsteht der interne Bereich
-                für Mitglieder.
-              </p>
-            ) : (
-              /* AN ACCOUNT IS NOT A MEMBERSHIP. Saying so plainly beats a
-                 members area that looks empty and broken to somebody the
-                 club has not let in yet. */
-              <p className="memberwait">
-                Dein Konto ist angelegt, aber noch nicht freigegeben. Ein
-                Administrator schaltet es frei — bis dahin ist der interne
-                Bereich noch nicht sichtbar.
-              </p>
-            )}
-          </div>
+                {member.approved ? (
+                  <p>
+                    Schön, dass Du da bist. Hier entsteht der interne
+                    Bereich für Mitglieder.
+                  </p>
+                ) : (
+                  /* AN ACCOUNT IS NOT A MEMBERSHIP. Saying so plainly
+                     beats a members area that looks empty and broken to
+                     somebody the club has not let in yet. */
+                  <p className="memberwait">
+                    Dein Konto ist angelegt, aber noch nicht freigegeben.
+                    Ein Administrator schaltet es frei — bis dahin ist der
+                    interne Bereich noch nicht sichtbar.
+                  </p>
+                )}
+              </div>
 
-          {/* THE BOARD'S WORK, below the welcome and only for the board.
-              Outside .memberbox because it is a list that grows, and the
-              440px card was measured for a login form. */}
-          {/* THE DAILY WORK FIRST, the administration after it. Answering
-              the public is what somebody signs in to do; approving a new
-              account happens a few times a year. */}
-          {member.can_answer && <Enquiries />}
-          {member.admin && (
-            <Board
-              me={member}
-              onChanged={() => {
-                api.me().then(setMember).catch(() => {
-                  /* Still signed in as far as this page is concerned; the
-                     next action or a reload will correct it. */
-                });
-              }}
-            />
+              {/* Renders nothing at all for a member who holds neither
+                  role — it decides that itself, so this line does not
+                  have to repeat the condition and then drift from it. */}
+              <Aufgaben member={member} />
+            </>
           )}
+
+          {/* ---- what the public has asked ------------------------- */}
+          {hier === "anfragen" &&
+            (member.can_answer ? (
+              <Enquiries />
+            ) : (
+              <Sackgasse
+                titel="Anfragen"
+                text={
+                  "Dafür fehlt Dir die Berechtigung. Wenn Du Anfragen " +
+                  "aus dem Kontaktformular beantworten möchtest, wende " +
+                  "Dich bitte an einen Administrator."
+                }
+              />
+            ))}
+
+          {/* ---- who is waiting to be let in ----------------------- */}
+          {hier === "nutzerverwaltung" &&
+            (member.admin ? (
+              <Board
+                me={member}
+                onChanged={() => {
+                  api.me().then(setMember).catch(() => {
+                    /* Still signed in as far as this page is concerned;
+                       the next action or a reload will correct it. */
+                  });
+                }}
+              />
+            ) : (
+              <Sackgasse
+                titel="Nutzerverwaltung"
+                text={
+                  "Dafür fehlt Dir die Berechtigung. Konten freischalten " +
+                  "und Rollen vergeben kann nur ein Administrator."
+                }
+              />
+            ))}
+
+          {/* ---- anything else ------------------------------------- */}
+          {/* A MISTYPED ADDRESS GETS AN ANSWER. Without this the section
+              renders empty and the members area looks broken rather than
+              wrongly addressed. */}
+          {hier !== "" &&
+            hier !== "anfragen" &&
+            hier !== "nutzerverwaltung" && (
+              <Sackgasse
+                titel="Seite nicht gefunden"
+                text="Diese Seite gibt es im Mitgliederbereich nicht."
+              />
+            )}
         </section>
       </>
     );
