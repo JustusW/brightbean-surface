@@ -913,19 +913,19 @@ export default function Members() {
   if (member) {
     return (
       <section className="members">
-        <div className="memberbox">
-          {/* THE SUBHEADER BAR. Who you are on the left, where you can
-              go on the right, one rule under it. The three controls used
-              to be full-width stacked blocks, which at 1200px meant
-              three enormous bands of colour above the actual content and
-              a page that read as a menu rather than a members' area. */}
-          <div className="memberbar">
-            <div className="memberbarwho">
-              <h1>Willkommen</h1>
-              <p className="memberwho">{member.email}</p>
-            </div>
-
-            <nav className="memberbaracts">
+        {/* A SUBMENU BAR, and this time actually one.
+         *
+         * The first attempt was three filled buttons in a row inside the
+         * welcome card — a toolbar wearing a bar's name. "That is NOT a
+         * submenu bar", and it was not: a bar is chrome, and those were
+         * the three loudest objects on the page.
+         *
+         * So it is now what this site's own header already is: text
+         * links on a rule, OUTSIDE the card, spanning the column.
+         * Destinations on the left, who you are and the way out on the
+         * right. Nothing in it competes with the content below it, which
+         * is the whole difference between a bar and three buttons. */}
+        <nav className="membernav">
               {/* THE VEREINSFORUM, for members the club has let in.
                   Hidden from everybody else rather than shown and
                   refused: the forum turns away anyone unapproved, so
@@ -936,7 +936,7 @@ export default function Members() {
                   reads this is already signed in here, so that path
                   takes them straight through. */}
               {member.approved && forum && (
-                <a className="memberforum" href={`${forum}/session/sso`}>
+                <a href={`${forum}/session/sso`}>
                   Zum Vereinsforum
                   <ExternalLink aria-hidden="true" />
                 </a>
@@ -949,18 +949,23 @@ export default function Members() {
                   approval is implied, because granting the role
                   approves the member. */}
               {member.can_social && (
-                <a className="memberforum" href="/brightbean/">
+                <a href="/brightbean/">
                   Social Media verwalten
                   <ExternalLink aria-hidden="true" />
                 </a>
               )}
+
+              {/* Who you are, and then the way out. Both pushed right,
+                  which is what makes this read as a bar rather than as
+                  a list of links. */}
+              <span className="membernavwho">{member.email}</span>
 
               {/* A GLYPH, like the role controls below. Signing out is
                   the one thing on this page nobody needs prompting
                   about, and as a full-width button it was the loudest
                   element on a page whose point is everything else. */}
               <button
-                className="memberout icon"
+                className="membernavout"
                 onClick={signOut}
                 disabled={busy}
                 title="Abmelden"
@@ -968,8 +973,10 @@ export default function Members() {
               >
                 <LogOut aria-hidden="true" />
               </button>
-            </nav>
-          </div>
+        </nav>
+
+        <div className="memberbox">
+          <h1>Willkommen</h1>
 
           {/* Good news, announced rather than merely drawn — somebody
               who has just confirmed an address or set a password needs

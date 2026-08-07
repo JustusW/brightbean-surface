@@ -955,66 +955,88 @@ main > .empty { margin-top: 40px; }
   margin: 0 0 20px;
 }
 
-/* ---- the members' subheader bar --------------------------------------
- * Who you are on the left, where you can go on the right, one rule
- * underneath. The three controls were full-width stacked blocks, which
- * at 1200px meant three enormous bands above the actual content - the
- * page read as a menu rather than as a members' area.
+/* ---- the members' submenu bar ----------------------------------------
+ * CHROME, NOT CONTENT, and that distinction is the whole of this block.
  *
- * WRAPS RATHER THAN SQUEEZES. On a phone the actions drop under the
- * heading at full size instead of shrinking below the 44px every
- * control here keeps. */
+ * The first attempt put three filled CTA buttons in a row inside the
+ * welcome card. It was a toolbar wearing a bar's name — "That is NOT a
+ * submenu bar" — and it was right: those three were the loudest objects
+ * on a page whose point is the lists below them.
+ *
+ * This is what the site's own header already is: text links on a rule,
+ * OUTSIDE the card, spanning the column. Destinations left, identity and
+ * the way out right. It recedes, which is what a bar is for.
+ *
+ * WRAPS RATHER THAN SQUEEZES, so on a phone the items drop to a second
+ * line at full size instead of shrinking below the 44px hit area every
+ * control on this site keeps. */
 
-.memberbar {
+.membernav {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 2px;
   flex-wrap: wrap;
-  padding-bottom: 18px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
   border-bottom: 1px solid var(--line);
 }
-.memberbar h1 { margin: 0; }
-.memberbar .memberwho { margin: 4px 0 0; }
 
-.memberbaracts {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  /* Pushed to the far end, and it is what makes this a BAR rather than
-     a heading with things after it. */
-  margin-left: auto;
-}
-
-/* The two links, in the bar: inline rather than the full-width block
-   they are on their own, and each carries an outward arrow so it is
-   clear before pressing that this leaves the page. */
-.memberbaracts .memberforum {
+.membernav a {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin: 0;
+  gap: 7px;
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 14px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  /* Sits ON the rule, like the header's own links: the underline is the
+     hover, so nothing moves when the pointer arrives. */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 140ms ease, border-color 140ms ease;
 }
-.memberbaracts .memberforum svg { width: 15px; height: 15px; flex: none; }
+.membernav a:hover,
+.membernav a:focus-visible {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+/* The outward arrow: quiet, and smaller than the word it follows. It
+   says "this leaves the page" before it is pressed rather than after. */
+.membernav a svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  opacity: 0.55;
+}
 
-/* Abmelden: a glyph, on the same terms as the role controls. Quiet,
-   because it is the one thing on this page nobody needs prompting to
-   find, and 44px square so shrinking the label has not shrunk the
-   target. */
-.memberout.icon {
+/* Identity and sign-out, pushed to the far end — which is what makes
+   this read as a bar rather than as a row of links. */
+.membernavwho {
+  margin-left: auto;
+  padding: 0 4px 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.membernavout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 44px;
   min-height: 44px;
-  margin: 0;
-  padding: 0;
   flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 140ms ease;
 }
-.memberout.icon svg { width: 18px; height: 18px; }
+.membernavout:hover:not(:disabled) { color: var(--ink); }
+.membernavout:disabled { opacity: 0.5; cursor: default; }
+.membernavout svg { width: 18px; height: 18px; }
 
 .memberwho {
   margin: -12px 0 18px;
