@@ -958,26 +958,61 @@ main > .empty { margin-top: 40px; }
 /* ---- the members' submenu bar ----------------------------------------
  * CHROME, NOT CONTENT, and that distinction is the whole of this block.
  *
- * The first attempt put three filled CTA buttons in a row inside the
- * welcome card. It was a toolbar wearing a bar's name — "That is NOT a
- * submenu bar" — and it was right: those three were the loudest objects
- * on a page whose point is the lists below them.
+ * THIRD SHAPE. The first put three filled CTA buttons in the welcome
+ * card — a toolbar wearing a bar's name, and the three loudest objects
+ * on a page whose point is the lists below them. The second made them
+ * text links on a rule, which was right about the DRESS and still wrong
+ * about the FURNITURE: it lived inside the centred 1200px column, 48
+ * pixels of padding below the header, a strip floating on the page
+ * gradient with a hairline under it. "WHY IS IT NOT ATTACHED TO THE
+ * FUCKING MENU BAR."
  *
- * This is what the site's own header already is: text links on a rule,
- * OUTSIDE the card, spanning the column. Destinations left, identity and
- * the way out right. It recedes, which is what a bar is for.
+ * Because it was not attached to anything. A submenu bar is part of the
+ * BAR, and three things make it so — all of them here:
+ *
+ *   FULL BLEED. The <nav> is a top-level element now, a sibling of
+ *   <section className="members"> rather than a child (see Members.tsx),
+ *   so it spans the page for nothing. No 100vw, no negative margins,
+ *   nothing to escape from — the same shape the hero uses.
+ *
+ *   THE HEADER'S OWN SURFACE. The identical translucent white and the
+ *   identical blur as .top, so the two read as one piece of furniture
+ *   rather than as a bar and a thing under it. It carries only a bottom
+ *   rule; the header's own bottom border is the line between them.
+ *
+ *   IT TRAVELS WITH THE HEADER. Sticky at exactly --header-h — the
+ *   measured height App.tsx publishes, not a constant somebody has to
+ *   keep in step — and one below the header's z-index, so on a phone the
+ *   opened burger menu covers it instead of poking through.
  *
  * WRAPS RATHER THAN SQUEEZES, so on a phone the items drop to a second
  * line at full size instead of shrinking below the 44px hit area every
  * control on this site keeps. */
 
 .membernav {
+  position: sticky;
+  /* Directly under the header, and MEASURED: App.tsx publishes the
+     header's real height. The fallback is what it measures at today. */
+  top: var(--header-h, 56px);
+  /* One below the header (20) and above the hero (10). */
+  z-index: 19;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+/* The BAND is the width of the page; its CONTENTS keep the members
+   area's own measure, so the links line up with the cards underneath
+   them rather than with the window's edge. Same division of labour as
+   .top and .topinner. */
+.membernavinner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 2px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
-  border-bottom: 1px solid var(--line);
 }
 
 .membernav a {
@@ -1269,6 +1304,9 @@ main > .empty { margin-top: 40px; }
   main { padding: 0 16px 48px; }
   .members { padding: 32px 16px 56px; }
   .memberbox { padding: 24px 20px 28px; }
+  /* The bar's contents keep the same 16px gutter as the column below
+     it, so the two edges line up on a phone as well. */
+  .membernavinner { padding: 0 16px; }
 
   /* 400 DOWN TO 100 ON A PHONE, on instruction. A 300px band pinned to
      the top of a 660px screen is nearly half of everything the reader

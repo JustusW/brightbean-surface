@@ -912,123 +912,136 @@ export default function Members() {
   // ---- signed in ------------------------------------------------------
   if (member) {
     return (
-      <section className="members">
-        {/* A SUBMENU BAR, and this time actually one.
+      <>
+        {/* A SUBMENU BAR — AND IT IS ATTACHED TO THE MENU BAR.
          *
-         * The first attempt was three filled buttons in a row inside the
-         * welcome card — a toolbar wearing a bar's name. "That is NOT a
-         * submenu bar", and it was not: a bar is chrome, and those were
-         * the three loudest objects on the page.
+         * Third shape, and the first two were both wrong in the same
+         * way: they treated this as something on the PAGE. First three
+         * filled buttons in the welcome card ("That is NOT a submenu
+         * bar"), then text links on a rule — but still inside the
+         * centred 1200px column, 48px of padding below the header,
+         * floating on the gradient. "WHY IS IT NOT ATTACHED TO THE
+         * FUCKING MENU BAR". Because it was a strip of page dressed as
+         * chrome.
          *
-         * So it is now what this site's own header already is: text
-         * links on a rule, OUTSIDE the card, spanning the column.
+         * A submenu bar is part of the BAR. So this <nav> is a sibling
+         * of <section className="members"> rather than a child of it —
+         * a top-level element, which is the width of the page for
+         * nothing and has no column to break out of. The same shape the
+         * hero uses, and for the same reason. Its own stylesheet gives
+         * it the header's surface, the header's blur, and sticky
+         * positioning at exactly --header-h, so it travels with the
+         * header instead of scrolling away from it.
+         *
          * Destinations on the left, who you are and the way out on the
-         * right. Nothing in it competes with the content below it, which
-         * is the whole difference between a bar and three buttons. */}
+         * right. Nothing in it competes with the content below, which is
+         * the whole difference between a bar and three buttons. */}
         <nav className="membernav">
-              {/* THE VEREINSFORUM, for members the club has let in.
-                  Hidden from everybody else rather than shown and
-                  refused: the forum turns away anyone unapproved, so
-                  offering it to somebody still waiting is offering them
-                  a closed door.
+          <div className="membernavinner">
+            {/* THE VEREINSFORUM, for members the club has let in.
+                Hidden from everybody else rather than shown and
+                refused: the forum turns away anyone unapproved, so
+                offering it to somebody still waiting is offering them a
+                closed door.
 
-                  IT POINTS AT /session/sso, NOT THE FRONT PAGE. Whoever
-                  reads this is already signed in here, so that path
-                  takes them straight through. */}
-              {member.approved && forum && (
-                <a href={`${forum}/session/sso`}>
-                  Zum Vereinsforum
-                  <ExternalLink aria-hidden="true" />
-                </a>
-              )}
+                IT POINTS AT /session/sso, NOT THE FRONT PAGE. Whoever
+                reads this is already signed in here, so that path takes
+                them straight through. */}
+            {member.approved && forum && (
+              <a href={`${forum}/session/sso`}>
+                Zum Vereinsforum
+                <ExternalLink aria-hidden="true" />
+              </a>
+            )}
 
-              {/* BRIGHTBEAN. A path on THIS host rather than a host of
-                  its own, which is what lets the session cookie be sent
-                  with it — nginx asks this site who you are before
-                  forwarding anything. Shown on can_social alone:
-                  approval is implied, because granting the role
-                  approves the member. */}
-              {member.can_social && (
-                <a href="/brightbean/">
-                  Social Media verwalten
-                  <ExternalLink aria-hidden="true" />
-                </a>
-              )}
+            {/* BRIGHTBEAN. A path on THIS host rather than a host of its
+                own, which is what lets the session cookie be sent with
+                it — nginx asks this site who you are before forwarding
+                anything. Shown on can_social alone: approval is implied,
+                because granting the role approves the member. */}
+            {member.can_social && (
+              <a href="/brightbean/">
+                Social Media verwalten
+                <ExternalLink aria-hidden="true" />
+              </a>
+            )}
 
-              {/* Who you are, and then the way out. Both pushed right,
-                  which is what makes this read as a bar rather than as
-                  a list of links. */}
-              <span className="membernavwho">{member.email}</span>
+            {/* Who you are, and then the way out. Both pushed right,
+                which is what makes this read as a bar rather than as a
+                list of links. */}
+            <span className="membernavwho">{member.email}</span>
 
-              {/* A GLYPH, like the role controls below. Signing out is
-                  the one thing on this page nobody needs prompting
-                  about, and as a full-width button it was the loudest
-                  element on a page whose point is everything else. */}
-              <button
-                className="membernavout"
-                onClick={signOut}
-                disabled={busy}
-                title="Abmelden"
-                aria-label="Abmelden"
-              >
-                <LogOut aria-hidden="true" />
-              </button>
+            {/* A GLYPH, like the role controls below. Signing out is the
+                one thing on this page nobody needs prompting about, and
+                as a full-width button it was the loudest element on a
+                page whose point is everything else. */}
+            <button
+              className="membernavout"
+              onClick={signOut}
+              disabled={busy}
+              title="Abmelden"
+              aria-label="Abmelden"
+            >
+              <LogOut aria-hidden="true" />
+            </button>
+          </div>
         </nav>
 
-        <div className="memberbox">
-          <h1>Willkommen</h1>
+        <section className="members">
+          <div className="memberbox">
+            <h1>Willkommen</h1>
 
-          {/* Good news, announced rather than merely drawn — somebody
-              who has just confirmed an address or set a password needs
-              telling that it worked. */}
-          {notice && (
-            <p className="membernotice" role="status">
-              {notice}
-            </p>
+            {/* Good news, announced rather than merely drawn — somebody
+                who has just confirmed an address or set a password needs
+                telling that it worked. */}
+            {notice && (
+              <p className="membernotice" role="status">
+                {notice}
+              </p>
+            )}
+            {error && (
+              <p className="membererror" role="alert">
+                {error}
+              </p>
+            )}
+
+            {member.approved ? (
+              <p>
+                Schön, dass Du da bist. Hier entsteht der interne Bereich
+                für Mitglieder.
+              </p>
+            ) : (
+              /* AN ACCOUNT IS NOT A MEMBERSHIP. Saying so plainly beats a
+                 members area that looks empty and broken to somebody the
+                 club has not let in yet. */
+              <p className="memberwait">
+                Dein Konto ist angelegt, aber noch nicht freigegeben. Ein
+                Administrator schaltet es frei — bis dahin ist der interne
+                Bereich noch nicht sichtbar.
+              </p>
+            )}
+          </div>
+
+          {/* THE BOARD'S WORK, below the welcome and only for the board.
+              Outside .memberbox because it is a list that grows, and the
+              440px card was measured for a login form. */}
+          {/* THE DAILY WORK FIRST, the administration after it. Answering
+              the public is what somebody signs in to do; approving a new
+              account happens a few times a year. */}
+          {member.can_answer && <Enquiries />}
+          {member.admin && (
+            <Board
+              me={member}
+              onChanged={() => {
+                api.me().then(setMember).catch(() => {
+                  /* Still signed in as far as this page is concerned; the
+                     next action or a reload will correct it. */
+                });
+              }}
+            />
           )}
-          {error && (
-            <p className="membererror" role="alert">
-              {error}
-            </p>
-          )}
-
-          {member.approved ? (
-            <p>
-              Schön, dass Du da bist. Hier entsteht der interne Bereich für
-              Mitglieder.
-            </p>
-          ) : (
-            /* AN ACCOUNT IS NOT A MEMBERSHIP. Saying so plainly beats a
-               members area that looks empty and broken to somebody the
-               club has not let in yet. */
-            <p className="memberwait">
-              Dein Konto ist angelegt, aber noch nicht freigegeben. Ein
-              Administrator schaltet es frei — bis dahin ist der interne
-              Bereich noch nicht sichtbar.
-            </p>
-          )}
-
-        </div>
-
-        {/* THE BOARD'S WORK, below the welcome and only for the board.
-            Outside .memberbox because it is a list that grows, and the
-            440px card was measured for a login form. */}
-        {/* THE DAILY WORK FIRST, the administration after it. Answering
-            the public is what somebody signs in to do; approving a new
-            account happens a few times a year. */}
-        {member.can_answer && <Enquiries />}
-        {member.admin && (
-          <Board
-            me={member}
-            onChanged={() => {
-              api.me().then(setMember).catch(() => {
-                /* Still signed in as far as this page is concerned; the
-                   next action or a reload will correct it. */
-              });
-            }}
-          />
-        )}
-      </section>
+        </section>
+      </>
     );
   }
 
