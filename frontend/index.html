@@ -25,26 +25,26 @@
          dark under them, on every single navigation. That flash is the
          entire reason theme switches are done this way.
 
-         IT RESOLVES, IT DOES NOT GUESS. A stored choice wins; with no
-         stored choice it follows what the operating system asks for.
-         Either way it writes an EXPLICIT data-theme, so the stylesheet
-         needs one dark block keyed on that attribute instead of the
-         same block written twice - once for the class and once inside
-         a prefers-color-scheme query, which is how the two drift apart.
+         BRIGHT IS THE DEFAULT, FULL STOP. It deliberately does NOT ask
+         prefers-color-scheme: a first-time visitor gets the club's site
+         as the club designed it, and dark is something a person chooses
+         here rather than something their laptop chooses for them. The
+         system query is gone rather than merely overridden — a fallback
+         nobody wants is a second behaviour to keep working.
 
-         WRAPPED, because localStorage THROWS rather than returning null
-         in a browser with site data switched off, and an exception here
-         would stop the page loading at all. A visitor who has locked
-         their storage down still gets a working website; what they lose
-         is having their choice remembered. -->
+         IT WRITES AN EXPLICIT data-theme either way, so the stylesheet
+         needs one dark block keyed on that attribute rather than the
+         same values written twice.
+
+         WRAPPED, because reading document.cookie can throw in a browser
+         with site data switched off, and an exception here would stop
+         the page loading at all. That visitor gets the bright site,
+         which is the default anyway. -->
     <script>
       (function () {
         var dark = false;
         try {
-          var chosen = localStorage.getItem("vfm-theme");
-          dark = chosen
-            ? chosen === "dark"
-            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          dark = /(?:^|;\s*)vfm-theme=dark(?:\s*;|\s*$)/.test(document.cookie);
         } catch (e) {
           dark = false;
         }

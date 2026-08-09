@@ -370,43 +370,44 @@ function Shell({ site }: { site: Site | null }) {
     if (meta) meta.setAttribute("content", dark ? "#0d151d" : "#ffffff");
   }, [dark]);
 
-  /** NOTHING IS WRITTEN DOWN UNTIL SOMEBODY PRESSES THE BUTTON.
+  /** REMEMBERED IN A COOKIE, and only ever written by a press.
    *
-   *  Saving on mount instead would look identical and quietly destroy
-   *  the next behaviour: a visitor who has never chosen would then have
-   *  a stored preference anyway, and the site would stop following
-   *  their system when it switches at sunset. Only a deliberate press
-   *  is a choice. */
+   *  IT NEEDS NO CONSENT BANNER, and that is worth stating rather than
+   *  hoping. §25 TTDSG requires consent to put anything on somebody's
+   *  device EXCEPT where it is strictly necessary to provide a service
+   *  the user explicitly asked for. This is written at the moment they
+   *  press the switch, holds one word, identifies nobody and is used
+   *  for nothing else — it is the textbook example of that exemption.
+   *  Setting it on arrival, or using it to recognise a returning
+   *  visitor, would be a different thing entirely and would need one.
+   *
+   *  A YEAR, because the alternative is a member who set this in March
+   *  finding the site bright again in May for no reason they can see.
+   *
+   *  SameSite=Lax so it is not sent from other people's sites, and
+   *  Secure whenever the page is https — never unconditionally, or the
+   *  switch stops being remembered on a developer's http://localhost
+   *  and looks broken there for a reason nobody would guess.
+   *
+   *  UNLIKE localStorage, A COOKIE TRAVELS. It is sent to our own
+   *  server with every request, which buys nothing here — the page
+   *  reads it in the browser — and costs about twenty bytes. That is
+   *  the trade the shepherd asked for and it is a small one. */
   const flip = () => {
     setDark((was) => {
       const next = !was;
       try {
-        localStorage.setItem("vfm-theme", next ? "dark" : "light");
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie =
+          `vfm-theme=${next ? "dark" : "light"}` +
+          `; path=/; max-age=31536000; SameSite=Lax${secure}`;
       } catch {
-        /* Storage refused — the switch still works for this visit, it
+        /* Cookies refused — the switch still works for this visit, it
            simply will not be remembered. Not worth telling anybody. */
       }
       return next;
     });
   };
-
-  /** FOLLOW THE SYSTEM, UNTIL TOLD OTHERWISE. Somebody whose phone goes
-   *  dark in the evening should see this page go dark with everything
-   *  else — but never over the top of a choice they made by hand. */
-  useEffect(() => {
-    const ask = window.matchMedia("(prefers-color-scheme: dark)");
-    const follow = (e: MediaQueryListEvent) => {
-      let chosen: string | null = null;
-      try {
-        chosen = localStorage.getItem("vfm-theme");
-      } catch {
-        chosen = null;
-      }
-      if (!chosen) setDark(e.matches);
-    };
-    ask.addEventListener("change", follow);
-    return () => ask.removeEventListener("change", follow);
-  }, []);
 
   /** HOW TALL THE HEADER IS, measured rather than assumed, and published
    *  as --header-h for the hero to hang beneath.
