@@ -52,6 +52,14 @@ const WE_WILL_BE_IN_TOUCH =
  */
 const KEY = "vfm_enquiry";
 
+/** How tall the message box is allowed to grow, in pixels.
+ *
+ *  It MUST match max-height on .bubbleform textarea. Past this the box
+ *  scrolls instead of growing — otherwise a long enquiry eats the
+ *  thread above it and then pushes the whole panel off the bottom of a
+ *  phone, taking the Senden button with it. */
+const GROW_TO = 220;
+
 interface Line {
   /** "them" is the visitor's own words; "us" is one of the two
    *  constants above. Never mixed up, because what the visitor typed is
@@ -90,6 +98,24 @@ export default function ContactBubble() {
     thread.current?.scrollTo({ top: thread.current.scrollHeight });
     input.current?.focus();
   }, [open, lines]);
+
+  /** THE BOX GROWS WITH WHAT IS BEING WRITTEN, and shrinks back when
+   *  the message has gone.
+   *
+   *  height is set to "auto" FIRST on purpose. scrollHeight can only
+   *  report content taller than the box, never shorter — so measuring
+   *  without releasing the height means the box ratchets upwards and
+   *  never comes back down after a send, or after somebody deletes a
+   *  paragraph.
+   *
+   *  Driven off `draft` rather than off the keystroke, so it is also
+   *  right for the text put BACK after a failed send. */
+  useEffect(() => {
+    const box = input.current;
+    if (!box) return;
+    box.style.height = "auto";
+    box.style.height = `${Math.min(box.scrollHeight, GROW_TO)}px`;
+  }, [draft, open]);
 
   const send = async (e: FormEvent) => {
     e.preventDefault();
@@ -209,10 +235,14 @@ export default function ContactBubble() {
             <label className="sr" htmlFor="bubble-input">
               Ihre Nachricht
             </label>
+            {/* rows is the floor before any JavaScript has run — what
+                the box is worth on its own. The real minimum is
+                min-height in the stylesheet, and it grows from there as
+                somebody types. */}
             <textarea
               id="bubble-input"
               ref={input}
-              rows={2}
+              rows={4}
               value={draft}
               placeholder="Ihre Nachricht an uns…"
               onChange={(e) => setDraft(e.target.value)}
