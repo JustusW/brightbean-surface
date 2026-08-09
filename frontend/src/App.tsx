@@ -7,6 +7,11 @@ import {
   useParams,
 } from "react-router-dom";
 import { marked } from "marked";
+/* Vendored with everything else — lucide-react is already a dependency
+   of this bundle (the contact bubble, the calling cards and the members'
+   role controls all draw from it), so the switch costs two more glyphs
+   rather than a new package. */
+import { Moon, Sun } from "lucide-react";
 /* LOADED ONLY BY THE PAGE THAT USES IT. Leaflet and its stylesheet are
    about 150 kB, they are needed on ONE page out of eight, and putting
    them in the main bundle took it from 339 kB to 492 — past the warning
@@ -347,6 +352,62 @@ function Shell({ site }: { site: Site | null }) {
   const [open, setOpen] = useState(false);
   const head = useRef<HTMLElement>(null);
 
+  /** LIGHT OR DARK, and the answer is already on the page.
+   *
+   *  index.html resolves it before the first paint and writes it onto
+   *  <html>, so this reads that rather than deciding again — two places
+   *  deciding the same thing is how the button ends up disagreeing with
+   *  what is on screen. */
+  const [dark, setDark] = useState(
+    () => document.documentElement.dataset.theme === "dark",
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    // The colour a phone paints its own chrome with. Left alone it keeps
+    // the light value and puts a pale bar above a dark page.
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", dark ? "#0d151d" : "#ffffff");
+  }, [dark]);
+
+  /** NOTHING IS WRITTEN DOWN UNTIL SOMEBODY PRESSES THE BUTTON.
+   *
+   *  Saving on mount instead would look identical and quietly destroy
+   *  the next behaviour: a visitor who has never chosen would then have
+   *  a stored preference anyway, and the site would stop following
+   *  their system when it switches at sunset. Only a deliberate press
+   *  is a choice. */
+  const flip = () => {
+    setDark((was) => {
+      const next = !was;
+      try {
+        localStorage.setItem("vfm-theme", next ? "dark" : "light");
+      } catch {
+        /* Storage refused — the switch still works for this visit, it
+           simply will not be remembered. Not worth telling anybody. */
+      }
+      return next;
+    });
+  };
+
+  /** FOLLOW THE SYSTEM, UNTIL TOLD OTHERWISE. Somebody whose phone goes
+   *  dark in the evening should see this page go dark with everything
+   *  else — but never over the top of a choice they made by hand. */
+  useEffect(() => {
+    const ask = window.matchMedia("(prefers-color-scheme: dark)");
+    const follow = (e: MediaQueryListEvent) => {
+      let chosen: string | null = null;
+      try {
+        chosen = localStorage.getItem("vfm-theme");
+      } catch {
+        chosen = null;
+      }
+      if (!chosen) setDark(e.matches);
+    };
+    ask.addEventListener("change", follow);
+    return () => ask.removeEventListener("change", follow);
+  }, []);
+
   /** HOW TALL THE HEADER IS, measured rather than assumed, and published
    *  as --header-h for the hero to hang beneath.
    *
@@ -384,6 +445,30 @@ function Shell({ site }: { site: Site | null }) {
           <Link className="brand" to="/" onClick={() => setOpen(false)}>
             {site?.title ?? "VFM Stutensee"}
           </Link>
+          {/* LIGHT OR DARK. Outside the nav on purpose — the nav folds
+              behind the burger on a phone, and a reading-comfort control
+              you have to open a menu to reach is one nobody finds.
+
+              aria-pressed, so a screen reader announces it as the toggle
+              it is rather than as a button that might do anything. The
+              GLYPH shows the state (sun = this page is light) and the
+              accessible name states the action, which is the rule the
+              members' role controls already follow. */}
+          <button
+            className="design"
+            type="button"
+            aria-pressed={dark}
+            title={
+              dark ? "Helles Design einschalten" : "Dunkles Design einschalten"
+            }
+            aria-label={
+              dark ? "Helles Design einschalten" : "Dunkles Design einschalten"
+            }
+            onClick={flip}
+          >
+            {dark ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
+          </button>
+
           {/* A real <button>, not a styled div: it must be reachable and
               operable from a keyboard, and aria-expanded is what tells a
               screen reader whether the menu is currently open. */}

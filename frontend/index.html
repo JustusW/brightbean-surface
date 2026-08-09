@@ -14,6 +14,43 @@
     <meta name="theme-color" content="#0d1b2a" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="de_DE" />
+
+    <!-- THE THEME IS DECIDED BEFORE ANYTHING IS PAINTED, and that is why
+         this is an inline script in the head rather than something React
+         does on mount.
+
+         React runs after the document has already been painted once. A
+         member who has chosen the dark design would get a full white
+         flash of the page — header, cards and all — and then have it go
+         dark under them, on every single navigation. That flash is the
+         entire reason theme switches are done this way.
+
+         IT RESOLVES, IT DOES NOT GUESS. A stored choice wins; with no
+         stored choice it follows what the operating system asks for.
+         Either way it writes an EXPLICIT data-theme, so the stylesheet
+         needs one dark block keyed on that attribute instead of the
+         same block written twice - once for the class and once inside
+         a prefers-color-scheme query, which is how the two drift apart.
+
+         WRAPPED, because localStorage THROWS rather than returning null
+         in a browser with site data switched off, and an exception here
+         would stop the page loading at all. A visitor who has locked
+         their storage down still gets a working website; what they lose
+         is having their choice remembered. -->
+    <script>
+      (function () {
+        var dark = false;
+        try {
+          var chosen = localStorage.getItem("vfm-theme");
+          dark = chosen
+            ? chosen === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        } catch (e) {
+          dark = false;
+        }
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -72,10 +72,133 @@
      Guessing this is what put the pictures under the hero twice. */
   --chrome: 252px;
 
+  /* ---- the surfaces that used to be written into the rules ----------
+   *
+   * Every one of these was a literal further down this file, and a
+   * literal cannot have a second value. Named here, the dark block
+   * below is the ONLY place that has to know a second one — and a rule
+   * that forgets to use a variable shows up immediately as the one
+   * white card on a dark page rather than as a subtle wrongness.
+   *
+   * They are named for their JOB, not their colour: --glass is the
+   * header's frosted bar, not "white-88". #ffffff is not white here,
+   * it is what paper is today. */
+
+  /* The header bar and the members' submenu bar. Translucent, because
+     both of them blur what is passing underneath. */
+  --glass: rgba(255, 255, 255, 0.88);
+
+  /* The canvas gradient on <html>, top to bottom. */
+  --canvas-top: #fbfdfe;
+  --canvas-mid: #f2f6f9;
+  --canvas-low: #eaf1f6;
+  --canvas-foot: #e4edf4;
+
+  /* What you type INTO — inputs and the bubble's textarea. Distinct
+     from --paper on purpose: a field must read as a well in the card,
+     and on a dark page a field that matches its card disappears. */
+  --field: #ffffff;
+
+  /* Good news, bad news, and waiting. Same geometry, three meanings —
+     see .membernotice / .membererror / .memberwait. */
+  --notice-bg: #eaf7ef;
+  --notice-edge: #2e8b57;
+  --notice-ink: #1d5c3a;
+  --alarm-bg: #fdecec;
+  --alarm-edge: #c0392b;
+  --alarm-ink: #7d241a;
+  --waiting-bg: #fff8ec;
+
+  /* The count badge: "3 offen", "2 warten". */
+  --badge-bg: #fff2d8;
+  --badge-edge: #f0d6a0;
+  --badge-ink: #7d4a00;
+
+  /* How present the airfield behind everything is. It has to give way
+     further after dark: the same photograph at the same opacity turns a
+     dark page grey and washes the text out. */
+  --backdrop-strength: 0.5;
+
   font-family: var(--font);
   font-size: 18px;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---- the same site, after dark ---------------------------------------
+ *
+ * ONE BLOCK, KEYED ON AN ATTRIBUTE the page already carries before it
+ * paints (see the script in index.html). The obvious alternative is to
+ * write the dark values twice — once under a class and once inside
+ * @media (prefers-color-scheme: dark) — and those two copies drift, so
+ * the OS-dark visitor and the button-dark visitor end up on subtly
+ * different sites. Here there is one copy and the SCRIPT decides which
+ * visitors get it.
+ *
+ * NOT AN INVERSION. #12212e does not become #edded1; the palette is
+ * re-chosen. Inverted photographs of aeroplanes look like X-rays, and
+ * inverting a brand blue gives you orange.
+ *
+ * THE TEXT IS NOT PURE WHITE ON PURE BLACK. #e7eef4 on #121b24 is about
+ * 14:1 — past AAA, and without the halation that makes #fff on #000
+ * physically tiring to read at length. This site carries a
+ * Datenschutzerklärung somebody has to get through.
+ *
+ * THE LINKS GET LIGHTER, NOT DARKER. --sky-deep is the link colour and
+ * "deep" stops meaning readable the moment the page behind it is dark,
+ * so it moves UP the scale rather than down. A variable named for where
+ * it sits on a light page is exactly the sort of thing that survives a
+ * theme switch while quietly failing contrast. */
+
+:root[data-theme="dark"] {
+  --ink: #e7eef4;
+  --ink-soft: #b7c6d3;
+  --muted: #8598a8;
+  --line: #26333f;
+  --paper: #121b24;
+  --wash: #18222c;
+
+  --sky: #5aa8dc;
+  --sky-deep: #8cc8ef;
+  --sun: #edb257;
+
+  /* The contact bubble sits over photographs AND over dark cards, so it
+     stays light in both themes — it is the one control that cannot take
+     its colour from the page behind it. */
+  --cta: #c8d4dd;
+  --cta-hover: #ffffff;
+
+  /* A shadow is the absence of light. On a dark surface the light-page
+     values are simply invisible, so cards would lose their edges
+     entirely — these are heavier and blacker to do the same job. */
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.50),
+            0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.55),
+                 0 16px 40px rgba(0, 0, 0, 0.50);
+
+  --glass: rgba(14, 21, 28, 0.86);
+
+  --canvas-top: #0d151d;
+  --canvas-mid: #101922;
+  --canvas-low: #121c26;
+  --canvas-foot: #15202b;
+
+  /* DARKER than the card it sits in, not lighter. A field is a well. */
+  --field: #0e1720;
+
+  --notice-bg: #12291d;
+  --notice-edge: #3fa76b;
+  --notice-ink: #a9e0c0;
+  --alarm-bg: #2b1414;
+  --alarm-edge: #e0614f;
+  --alarm-ink: #f3b3a8;
+  --waiting-bg: #2a2114;
+
+  --badge-bg: #33280f;
+  --badge-edge: #6b5320;
+  --badge-ink: #f0c877;
+
+  --backdrop-strength: 0.28;
 }
 
 * { box-sizing: border-box; }
@@ -94,10 +217,10 @@
 html {
   background: linear-gradient(
     180deg,
-    #fbfdfe 0%,
-    #f2f6f9 38%,
-    #eaf1f6 72%,
-    #e4edf4 100%);
+    var(--canvas-top) 0%,
+    var(--canvas-mid) 38%,
+    var(--canvas-low) 72%,
+    var(--canvas-foot) 100%);
   /* No fixed attachment: the gradient is meant to span the PAGE, so a
      long page spreads it further rather than repeating it per screen. */
   background-attachment: scroll;
@@ -167,7 +290,7 @@ a { color: var(--sky-deep); }
   pointer-events: none;
   /* Transparent enough to be weather rather than a picture. The page has
      to stay comfortably readable over it. */
-  opacity: 0.5;
+  opacity: var(--backdrop-strength);
   --pan: 0px;
 }
 
@@ -197,7 +320,7 @@ a { color: var(--sky-deep); }
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--glass);
   backdrop-filter: saturate(180%) blur(12px);
   border-bottom: 1px solid var(--line);
 }
@@ -276,6 +399,42 @@ a { color: var(--sky-deep); }
   background: var(--sky);
   box-shadow: inset 0 0 0 1px rgba(18, 33, 46, 0.14);
 }
+
+/* ---- the light/dark switch ------------------------------------------
+ * In the header, left of the burger, so it is on screen at every scroll
+ * position and on every page — and so it does NOT live inside the nav,
+ * which collapses behind the burger on a phone. A control for reading
+ * comfort that you have to open a menu to reach is a control nobody
+ * finds.
+ *
+ * THE GLYPH IS THE STATE, THE WORDS ARE THE ACTION — the same rule the
+ * members' role controls follow. A sun means the page IS light; the
+ * tooltip and the accessible name say "Dunkles Design einschalten".
+ *
+ * IT DOES NOT MAKE THE HEADER TALLER. 44px of hit area inside a row
+ * that is 28px of brand plus 28px of padding would push the bar to 72
+ * and shift the hero, the sticky submenu bar and the gallery's height
+ * budget with it. The negative margin lets the TARGET be 44 while the
+ * element contributes its old height to the row — the thumb gets the
+ * full square, the layout does not move. */
+.design {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin: -8px 0 -8px 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+.design:hover { color: var(--ink); border-color: var(--line); }
+.design svg { width: 19px; height: 19px; }
 
 .burger {
   display: none;
@@ -903,7 +1062,7 @@ main > .empty { margin-top: 40px; }
   margin: 0 0 24px;
   padding: 16px 20px;
   border-left: 4px solid var(--sun);
-  background: #fff8ec;
+  background: var(--waiting-bg);
   border-radius: 0 12px 12px 0;
 }
 .prose blockquote p { margin: 0 0 8px; }
@@ -1044,7 +1203,7 @@ main > .empty { margin-top: 40px; }
   top: var(--header-h, 56px);
   /* One below the header (20) and above the hero (10). */
   z-index: 19;
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--glass);
   backdrop-filter: saturate(180%) blur(12px);
   border-bottom: 1px solid var(--line);
 }
@@ -1152,7 +1311,7 @@ main > .empty { margin-top: 40px; }
 }
 
 .memberwait {
-  background: #fff8ec;
+  background: var(--waiting-bg);
   border-left: 4px solid var(--sun);
   border-radius: 0 10px 10px 0;
   padding: 14px 16px;
@@ -1196,7 +1355,7 @@ main > .empty { margin-top: 40px; }
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--field);
   font: inherit;
   font-size: 16.5px;
   color: var(--ink);
@@ -1206,9 +1365,9 @@ main > .empty { margin-top: 40px; }
   margin: 0 0 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: #fdecec;
-  border-left: 4px solid #c0392b;
-  color: #7d241a;
+  background: var(--alarm-bg);
+  border-left: 4px solid var(--alarm-edge);
+  color: var(--alarm-ink);
   font-size: 15.5px;
 }
 
@@ -1219,9 +1378,9 @@ main > .empty { margin-top: 40px; }
   margin: 0 0 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: #eaf7ef;
-  border-left: 4px solid #2e8b57;
-  color: #1d5c3a;
+  background: var(--notice-bg);
+  border-left: 4px solid var(--notice-edge);
+  color: var(--notice-ink);
   font-size: 15.5px;
 }
 
@@ -1478,9 +1637,9 @@ main > .empty { margin-top: 40px; }
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #7d4a00;
-  background: #fff2d8;
-  border: 1px solid #f0d6a0;
+  color: var(--badge-ink);
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-edge);
   border-radius: 999px;
   padding: 3px 11px;
 }
@@ -1756,9 +1915,9 @@ main > .empty { margin-top: 40px; }
   margin: 10px 16px 0;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #fdecec;
-  border-left: 4px solid #c0392b;
-  color: #7d241a;
+  background: var(--alarm-bg);
+  border-left: 4px solid var(--alarm-edge);
+  color: var(--alarm-ink);
   font-size: 14.5px;
 }
 
@@ -1779,7 +1938,7 @@ main > .empty { margin-top: 40px; }
   font-size: 15.5px;
   line-height: 1.4;
   color: var(--ink);
-  background: #fff;
+  background: var(--field);
 }
 .bubbleform textarea:focus { outline: none; border-color: var(--sky); }
 .bubbleform button {
