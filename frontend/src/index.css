@@ -361,25 +361,31 @@ a { color: var(--sky-deep); }
    get "Verein für Modellflug Stutensee" - and is clipped behind the
    image rather than deleted.
  
-   IT CARRIES ITS OWN WHITE GROUND, which is the artwork and not a
-   frame added here. The logo is drawn FOR a light background: on dark
-   the mane is black on black and "STUTENSEE", the V, the f and the
-   swoosh's lower arc are dark grey and all but vanish. No recolour
-   serves both themes, because the drawing uses black AND white as
-   major values - so the plaque IS the asset. It disappears against the
-   light header and reads as a tile against the dark one.
+   IT IS PROPERLY TRANSPARENT, and it briefly was not. The first source
+   was a JPEG on opaque white paper and could not be cut out at all -
+   the artwork was white exactly where the paper was, and where an eye
+   reads an edge from context the drawing had none - so it shipped for
+   an hour on a white plaque. That was correct for that file and is
+   superseded: this one is a transparent export.
+ 
+   IT WORKS ON BOTH THEMES BECAUSE OF THE KEYLINE. The artwork is drawn
+   with a white outline around the mane, the body and the letterforms.
+   Against the light header that keyline is invisible and the logo
+   reads as drawn; against the dark header it separates every dark
+   shape from the background. The previous artwork had no outline and
+   used black AND white as major values, so no transparent version of
+   it could ever have been readable after dark - which is why that one
+   needed a plate and this one does not.
  
    A SEPARATE FILE FROM vfm-logo.png, and deliberately: the full asset
-   is half a megabyte, which is right for an OG card or for print and
-   absurd on every page load. This one is 480px against a displayed
-   121, so it is still sharp on a 3x phone at a twentieth of the
-   weight.
+   is 1.4 MB, which is right for an OG card or for print and absurd on
+   every page load. This one is 480px against a displayed 125, so it is
+   still sharp on a 3x phone at a fifteenth of the weight.
  
-   NO border-radius, and `contain` not `cover`: the corners are already
-   rounded and antialiased in the file, so rounding again would clip
-   them and cropping would cut them off. */
+   `contain`, so the whole lockup is shown rather than cropped, and the
+   box below is the asset's own aspect so there is nothing to letterbox. */
 .brand {
-  width: 121px;
+  width: 125px;
   height: 44px;
   flex: none;
   margin-right: auto;
