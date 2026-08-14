@@ -98,6 +98,11 @@ def feed(limit: int | None = None) -> dict:
             workspace=cfg.workspace,
             platforms=cfg.platforms,
             accounts=cfg.accounts,
+            # BY NAME AS WELL AS BY UUID. This is what lets Aktuelles
+            # come from a channel that publishes nowhere, so the club's
+            # front page stops being a mirror of its Instagram and can
+            # carry a caption written for the web.
+            channels=cfg.channels,
             limit=wanted,
         )
     except Exception as exc:
@@ -155,6 +160,7 @@ def gallery() -> dict:
             workspace=cfg.workspace,
             platforms=cfg.platforms,
             accounts=cfg.accounts,
+            channels=cfg.channels,
             # THE WALL DRAWS FROM MORE THAN AKTUELLES DOES. The club has a
             # channel that publishes nowhere and exists only to put a
             # picture on THIS page, so a photograph can reach the website
@@ -162,6 +168,12 @@ def gallery() -> dict:
             # account filter, which is safe because such a platform can
             # only ever hold one channel per workspace - see config.py.
             open_platforms=cfg.gallery_extra_platforms,
+            # AND WHICH CHANNELS ON THEM. Such a platform used to be able
+            # to hold exactly one channel per workspace, so naming it was
+            # unnecessary. Channels there can be named freely now, so a
+            # staging channel would otherwise land on the public wall
+            # simply for sharing a platform.
+            open_channels=cfg.gallery_extra_channels,
         )
     except Exception as exc:
         raise HTTPException(

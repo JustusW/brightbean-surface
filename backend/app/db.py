@@ -199,6 +199,14 @@ WHERE pp.status = 'published'
   AND (%(accounts)s::uuid[] IS NULL
        OR cardinality(%(accounts)s::uuid[]) = 0
        OR sa.id = ANY(%(accounts)s::uuid[]))
+  -- AND BY NAME, which is what lets the front page come from a channel
+  -- that publishes NOWHERE rather than being a mirror of Instagram.
+  -- `accounts` pins by UUID and keeps a second brand off this site;
+  -- this pins by the name a person reads in Brightbean. Empty means
+  -- every account on the platforms above, which is the old behaviour.
+  AND (%(channels)s::text[] IS NULL
+       OR cardinality(%(channels)s::text[]) = 0
+       OR sa.account_name = ANY(%(channels)s::text[]))
 -- NULLS LAST because published_at is nullable: a row published before
 -- that column was populated must not sort to the top of the page as if
 -- it were the newest thing the club has done.
@@ -228,13 +236,27 @@ ORDER BY pm.post_id, pm.position
 
 
 def feed(*, workspace: str, platforms: list[str], accounts: list[str],
-         limit: int) -> list[Item]:
-    """Published posts for the front page, newest first."""
+         limit: int, channels: list[str] | None = None) -> list[Item]:
+    """Published posts for the front page, newest first.
+
+    `channels` pins by the NAME a person reads in Brightbean, which is
+    what lets the front page come from a channel that publishes NOWHERE
+    instead of being a mirror of Instagram. Empty means every account on
+    the platforms above, so a caller that does not pass it behaves
+    exactly as this did before named channels existed.
+    """
     with pool().connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(_FEED_SQL, {
             "workspace": uuid.UUID(workspace),
             "platforms": platforms,
             "accounts": [uuid.UUID(a) for a in accounts],
+            # LIST(...) RATHER THAN THE ARGUMENT ITSELF, and not for
+            # tidiness: _FEED_SQL names %(channels)s, so a missing key
+            # here is not a silently unfiltered query - it is psycopg
+            # refusing to execute at all. This parameter was left out
+            # when the SQL gained the filter, which would have taken the
+            # front page down at the first request after deploying.
+            "channels": list(channels or []),
             "limit": limit,
         })
         rows = cur.fetchall()
@@ -334,21 +356,49 @@ WHERE pp.status = 'published'
   -- holds more than one brand: without the pin, SkyMasters' Instagram
   -- would appear on the club's own wall.
   --
-  -- An OPEN platform needs no pin, because it cannot be anybody else's.
-  -- `impressionen` is the club's own picture wall: SocialAccount is
-  -- unique on (workspace, platform, account_platform_id) and that
-  -- provider reports a CONSTANT id, so there is exactly one such account
-  -- per workspace, for ever, by construction. Demanding its UUID here
-  -- would be asking somebody to look up a value that has only one
-  -- possible answer.
+  -- An OPEN platform is one that publishes nowhere, so it cannot be a
+  -- second brand's account by accident the way a shared platform can.
+  -- `impressionen` is the club's own picture wall.
+  --
+  -- IT USED TO NEED NO FURTHER PIN AT ALL, because that provider
+  -- reported a CONSTANT account id and SocialAccount is unique on
+  -- (workspace, platform, account_platform_id) - so there was exactly
+  -- one such account per workspace, for ever, by construction.
+  --
+  -- THAT GUARANTEE IS GONE: channels on it can now be named freely, and
+  -- the name is the identity. So several may exist, and a staging
+  -- channel appearing on the club's public wall because it happens to
+  -- sit on the same platform would be a leak rather than a feature.
+  --
+  -- PINNED BY NAME AND NOT BY UUID, deliberately. The name is what a
+  -- person reads in Brightbean, so the configuration can be written and
+  -- checked by somebody who is not going to look a UUID up. Renaming a
+  -- channel there means editing it here, which is the cost of that and
+  -- is worth paying.
+  --
+  -- An EMPTY name list means every channel on those platforms, which is
+  -- how this behaved before there was more than one.
   AND (
         (
           sa.platform = ANY(%(platforms)s)
           AND (%(accounts)s::uuid[] IS NULL
                OR cardinality(%(accounts)s::uuid[]) = 0
                OR sa.id = ANY(%(accounts)s::uuid[]))
+          -- The same name pin the feed uses, and needed here for the
+          -- same reason: once the feed itself comes from a named
+          -- channel on a publishes-nowhere platform, an unpinned branch
+          -- would sweep every other channel on that platform onto the
+          -- wall.
+          AND (%(channels)s::text[] IS NULL
+               OR cardinality(%(channels)s::text[]) = 0
+               OR sa.account_name = ANY(%(channels)s::text[]))
         )
-        OR sa.platform = ANY(%(open_platforms)s)
+        OR (
+          sa.platform = ANY(%(open_platforms)s)
+          AND (%(open_channels)s::text[] IS NULL
+               OR cardinality(%(open_channels)s::text[]) = 0
+               OR sa.account_name = ANY(%(open_channels)s::text[]))
+        )
       )
   -- Stills only. A video in a photo grid is a black rectangle.
   AND ma.media_type IN ('image', 'gif')
@@ -359,19 +409,25 @@ ORDER BY ma.id, pp.published_at DESC NULLS LAST
 
 
 def gallery(*, workspace: str, platforms: list[str], accounts: list[str],
-            open_platforms: list[str] | None = None) -> list[Media]:
+            channels: list[str] | None = None,
+            open_platforms: list[str] | None = None,
+            open_channels: list[str] | None = None) -> list[Media]:
     """Every published picture, newest first.
 
-    `open_platforms` are included WITHOUT an account filter - see the
-    query. Defaulted rather than required, so the feed's own call and any
-    older caller behave exactly as before.
+    `open_platforms` are platforms that publish nowhere; `open_channels`
+    narrows those to named channels, because such a platform can now hold
+    more than one and they are not all meant to be public. Both default
+    to empty, so the feed's own call and any older caller behave exactly
+    as before.
     """
     with pool().connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(_GALLERY_SQL, {
             "workspace": uuid.UUID(workspace),
             "platforms": platforms,
             "accounts": [uuid.UUID(a) for a in accounts],
+            "channels": list(channels or []),
             "open_platforms": list(open_platforms or []),
+            "open_channels": list(open_channels or []),
         })
         rows = cur.fetchall()
 

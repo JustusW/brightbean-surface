@@ -53,6 +53,19 @@ class Config:
     workspace: str
     platforms: list[str]
     accounts: list[str]
+
+    #: WHICH CHANNELS FEED THE FRONT PAGE, BY NAME.
+    #:
+    #: `accounts` pins by UUID and exists to keep a second brand's
+    #: Instagram off this club's site. This pins by the name a person
+    #: reads in Brightbean, and it is what lets the front page come from
+    #: a channel that publishes NOWHERE - so "Aktuelles" on the club's
+    #: website stops being whatever was last put on Instagram, and a
+    #: caption can be written for the web rather than reused from it.
+    #:
+    #: Empty means every account on the platforms above, which is how
+    #: this behaved before named channels existed.
+    channels: list[str]
     #: PLATFORMS THE GALLERY SHOWS ON TOP OF THE FEED'S, with NO account
     #: filter - and the missing filter is the point rather than an
     #: oversight.
@@ -72,6 +85,27 @@ class Config:
     #: Empty means the wall shows exactly what the feed does, which is how
     #: this behaved before any of it existed.
     gallery_extra_platforms: list[str]
+
+    #: WHICH CHANNELS ON THOSE PLATFORMS, BY NAME.
+    #:
+    #: The platforms above once needed no further pin: that provider
+    #: reported a CONSTANT account id and SocialAccount is unique on
+    #: (workspace, platform, account_platform_id), so exactly one such
+    #: channel could exist per workspace, by construction.
+    #:
+    #: Channels on it can be named freely now, and the name is the
+    #: identity - so several can exist, and a staging channel turning up
+    #: on the club's PUBLIC wall because it happens to share a platform
+    #: would be a leak rather than a feature.
+    #:
+    #: BY NAME AND NOT BY UUID, deliberately: the name is what a person
+    #: reads in Brightbean, so this can be written and checked by
+    #: somebody who is not going to look a UUID up. The cost is that
+    #: renaming a channel there means editing it here.
+    #:
+    #: Empty means every channel on those platforms - which is how this
+    #: behaved while only one could exist.
+    gallery_extra_channels: list[str]
     limit: int
     media_base: str
     media_prefix: str
@@ -155,6 +189,11 @@ def load(path: str | None = None) -> Config:
 
     accounts = [str(a) for a in (feed.get("accounts") or []) if str(a)]
 
+    # NOT VALIDATED THE WAY platforms IS, and for the same reason
+    # `accounts` is not: empty means "every account on those platforms",
+    # which is a useful answer rather than a broken one.
+    channels = [str(c) for c in (feed.get("channels") or []) if str(c)]
+
     # THE GALLERY MAY DRAW FROM MORE THAN THE FEED DOES, and shows exactly
     # the feed when it says nothing - so this is invisible to any
     # deployment that does not use it.
@@ -165,6 +204,9 @@ def load(path: str | None = None) -> Config:
     # answer rather than a broken one.
     gallery_extra_platforms = [
         str(p) for p in (gallery.get("extra_platforms") or []) if str(p)
+    ]
+    gallery_extra_channels = [
+        str(c) for c in (gallery.get("extra_channels") or []) if str(c)
     ]
 
     pages: list[Page] = []
@@ -205,7 +247,9 @@ def load(path: str | None = None) -> Config:
         workspace=workspace,
         platforms=platforms,
         accounts=accounts,
+        channels=channels,
         gallery_extra_platforms=gallery_extra_platforms,
+        gallery_extra_channels=gallery_extra_channels,
         limit=int(feed.get("limit", 30)),
         media_base=str(media.get("base", "")),
         media_prefix=str(media.get("prefix", "/media/")),
