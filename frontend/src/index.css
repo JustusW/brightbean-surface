@@ -362,22 +362,29 @@ a { color: var(--sky-deep); }
   gap: 10px;
 }
 
-/* A mark rather than a logo we do not have: a small roundel, which is
-   what aircraft wear. Costs nothing and stops the header being a bare
-   line of text. */
+/* THE CLUB'S OWN MARK. What was here was a roundel, and its comment
+   said exactly why: "a mark rather than a logo we do not have". There
+   is one now.
+ 
+   IT CARRIES ITS OWN WHITE GROUND, and that is the artwork rather than
+   a frame added here. The logo is drawn FOR a light background: on
+   dark, the mane is black on black and the wordmark's grey all but
+   disappears, and no recolour fixes it because the drawing uses black
+   AND white as major values. So the white plaque is the asset. It is
+   invisible against the light header and reads as a small tile against
+   the dark one - correct in both, where a transparent cutout would
+   have been unreadable after dark.
+ 
+   NO border-radius HERE. The corners are already rounded and properly
+   antialiased in the file; rounding a second time would clip them.
+   `contain` for the same reason - `cover` would crop the plaque's own
+   edge back off. */
 .brand::before {
   content: "";
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: 30px;
+  height: 30px;
   flex: none;
-  background:
-    radial-gradient(circle at 50% 50%,
-      var(--sun) 0 22%, transparent 23%),
-    radial-gradient(circle at 50% 50%,
-      var(--paper) 0 44%, transparent 45%),
-    var(--sky);
-  box-shadow: inset 0 0 0 1px rgba(18, 33, 46, 0.12);
+  background: url("/vfm-mark.png") center / contain no-repeat;
 }
 
 .top nav { display: flex; gap: 26px; flex-wrap: wrap; }
