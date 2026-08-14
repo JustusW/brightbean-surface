@@ -349,43 +349,52 @@ a { color: var(--sky-deep); }
   flex-wrap: wrap;
 }
 
+/* THE CLUB'S LOGO, and it is the WHOLE LOCKUP rather than a crop of
+   one. What was here first was a roundel, whose own comment said why -
+   "a mark rather than a logo we do not have" - and then, briefly and
+   wrongly, the square mark: a 1:1 crop of the horse's head, in a bar
+   that is nearly three times as wide as it is tall, at a size where
+   the club's name did not appear at all.
+ 
+   THE NAME IS IN THE ARTWORK, so it is not also set in type beside it.
+   The text stays in the DOM - a screen reader and the tab order still
+   get "Verein für Modellflug Stutensee" - and is clipped behind the
+   image rather than deleted.
+ 
+   IT CARRIES ITS OWN WHITE GROUND, which is the artwork and not a
+   frame added here. The logo is drawn FOR a light background: on dark
+   the mane is black on black and "STUTENSEE", the V, the f and the
+   swoosh's lower arc are dark grey and all but vanish. No recolour
+   serves both themes, because the drawing uses black AND white as
+   major values - so the plaque IS the asset. It disappears against the
+   light header and reads as a tile against the dark one.
+ 
+   A SEPARATE FILE FROM vfm-logo.png, and deliberately: the full asset
+   is half a megabyte, which is right for an OG card or for print and
+   absurd on every page load. This one is 480px against a displayed
+   121, so it is still sharp on a 3x phone at a twentieth of the
+   weight.
+ 
+   NO border-radius, and `contain` not `cover`: the corners are already
+   rounded and antialiased in the file, so rounding again would clip
+   them and cropping would cut them off. */
 .brand {
-  font-family: var(--display);
-  font-weight: 600;
-  font-size: 18px;
-  letter-spacing: -0.02em;
-  text-decoration: none;
-  color: var(--ink);
+  width: 121px;
+  height: 44px;
+  flex: none;
   margin-right: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  background: url("/vfm-logo-header.png") left center / contain no-repeat;
+  /* Invisible to the eye, still there to be read. */
+  font-size: 0;
+  color: transparent;
+  overflow: hidden;
+  white-space: nowrap;
+  text-decoration: none;
 }
 
-/* THE CLUB'S OWN MARK. What was here was a roundel, and its comment
-   said exactly why: "a mark rather than a logo we do not have". There
-   is one now.
- 
-   IT CARRIES ITS OWN WHITE GROUND, and that is the artwork rather than
-   a frame added here. The logo is drawn FOR a light background: on
-   dark, the mane is black on black and the wordmark's grey all but
-   disappears, and no recolour fixes it because the drawing uses black
-   AND white as major values. So the white plaque is the asset. It is
-   invisible against the light header and reads as a small tile against
-   the dark one - correct in both, where a transparent cutout would
-   have been unreadable after dark.
- 
-   NO border-radius HERE. The corners are already rounded and properly
-   antialiased in the file; rounding a second time would clip them.
-   `contain` for the same reason - `cover` would crop the plaque's own
-   edge back off. */
-.brand::before {
-  content: "";
-  width: 30px;
-  height: 30px;
-  flex: none;
-  background: url("/vfm-mark.png") center / contain no-repeat;
-}
+/* The roundel that used to sit here, and then briefly a square crop of
+   the horse, are both gone. See .brand above: the header shows the
+   club's actual logo. */
 
 .top nav { display: flex; gap: 26px; flex-wrap: wrap; }
 .top nav a {
