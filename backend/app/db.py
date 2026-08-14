@@ -378,28 +378,27 @@ WHERE pp.status = 'published'
   --
   -- An EMPTY name list means every channel on those platforms, which is
   -- how this behaved before there was more than one.
-  AND (
-        (
-          sa.platform = ANY(%(platforms)s)
-          AND (%(accounts)s::uuid[] IS NULL
-               OR cardinality(%(accounts)s::uuid[]) = 0
-               OR sa.id = ANY(%(accounts)s::uuid[]))
-          -- The same name pin the feed uses, and needed here for the
-          -- same reason: once the feed itself comes from a named
-          -- channel on a publishes-nowhere platform, an unpinned branch
-          -- would sweep every other channel on that platform onto the
-          -- wall.
-          AND (%(channels)s::text[] IS NULL
-               OR cardinality(%(channels)s::text[]) = 0
-               OR sa.account_name = ANY(%(channels)s::text[]))
-        )
-        OR (
-          sa.platform = ANY(%(open_platforms)s)
-          AND (%(open_channels)s::text[] IS NULL
-               OR cardinality(%(open_channels)s::text[]) = 0
-               OR sa.account_name = ANY(%(open_channels)s::text[]))
-        )
-      )
+  -- THE WALL IS ONE SET OF CHANNELS, AND ONLY THAT.
+  --
+  -- This was the UNION of the feed's pins and a second "open" branch, so
+  -- every picture on the front page was on the wall by construction and
+  -- the two could never be told apart. That coupling is gone on
+  -- instruction: "Copy all images from Aktuelles into Impressionen, then
+  -- redirect the SQL to just Impressionen."
+  --
+  -- THE COPY HAPPENED FIRST, and the order is the whole risk: the wall's
+  -- pictures arrived through the feed's branch, so narrowing this before
+  -- Impressionen carried them would have emptied the page between two
+  -- deploys. mirror_to_channel copied the 20 posts across - the
+  -- PlatformPost, not the Post, so it is still one set of photographs.
+  --
+  -- So the wall is now exactly what is published on the named channels.
+  -- A photograph reaches it by being posted there, and Aktuelles is the
+  -- front page and nothing else.
+  AND sa.platform = ANY(%(platforms)s)
+  AND (%(channels)s::text[] IS NULL
+       OR cardinality(%(channels)s::text[]) = 0
+       OR sa.account_name = ANY(%(channels)s::text[]))
   -- Stills only. A video in a photo grid is a black rectangle.
   AND ma.media_type IN ('image', 'gif')
 -- DISTINCT ON requires the distinct key to lead the ordering; the useful
@@ -408,26 +407,26 @@ ORDER BY ma.id, pp.published_at DESC NULLS LAST
 """
 
 
-def gallery(*, workspace: str, platforms: list[str], accounts: list[str],
-            channels: list[str] | None = None,
-            open_platforms: list[str] | None = None,
-            open_channels: list[str] | None = None) -> list[Media]:
-    """Every published picture, newest first.
+def gallery(*, workspace: str, platforms: list[str],
+            channels: list[str] | None = None) -> list[Media]:
+    """Every picture published on the wall's own channels, newest first.
 
-    `open_platforms` are platforms that publish nowhere; `open_channels`
-    narrows those to named channels, because such a platform can now hold
-    more than one and they are not all meant to be public. Both default
-    to empty, so the feed's own call and any older caller behave exactly
-    as before.
+    IT NO LONGER TAKES THE FEED'S PINS. It used to accept the feed's
+    platforms and accounts as well and UNION them in, which made every
+    front-page picture a wall picture by construction. The wall is now
+    defined by its own channels alone - see _GALLERY_SQL - so a
+    photograph gets there by being published there.
+
+    The dead parameters are REMOVED rather than left accepted and
+    ignored: psycopg would have taken the extra keys without a word, and
+    a caller still passing `accounts` would look like it was pinning
+    something.
     """
     with pool().connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(_GALLERY_SQL, {
             "workspace": uuid.UUID(workspace),
             "platforms": platforms,
-            "accounts": [uuid.UUID(a) for a in accounts],
             "channels": list(channels or []),
-            "open_platforms": list(open_platforms or []),
-            "open_channels": list(open_channels or []),
         })
         rows = cur.fetchall()
 

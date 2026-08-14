@@ -158,22 +158,23 @@ def gallery() -> dict:
     try:
         media = db.gallery(
             workspace=cfg.workspace,
-            platforms=cfg.platforms,
-            accounts=cfg.accounts,
-            channels=cfg.channels,
-            # THE WALL DRAWS FROM MORE THAN AKTUELLES DOES. The club has a
-            # channel that publishes nowhere and exists only to put a
-            # picture on THIS page, so a photograph can reach the website
-            # without also reaching Instagram. These are included with no
-            # account filter, which is safe because such a platform can
-            # only ever hold one channel per workspace - see config.py.
-            open_platforms=cfg.gallery_extra_platforms,
-            # AND WHICH CHANNELS ON THEM. Such a platform used to be able
-            # to hold exactly one channel per workspace, so naming it was
-            # unnecessary. Channels there can be named freely now, so a
-            # staging channel would otherwise land on the public wall
-            # simply for sharing a platform.
-            open_channels=cfg.gallery_extra_channels,
+            # THE WALL'S OWN CHANNELS, AND NOT THE FEED'S. This passed
+            # cfg.platforms/accounts/channels as well and the query
+            # UNIONed them in, so everything on the front page was on the
+            # wall by construction. The two are separate now: Aktuelles is
+            # the front page, Impressionen is the wall, and a picture
+            # reaches the wall by being published there.
+            #
+            # The config keys are still called "extra_" for now, which is
+            # historical - they are the whole definition rather than an
+            # addition. Worth renaming; not worth a config mismatch
+            # tonight.
+            platforms=cfg.gallery_extra_platforms,
+            # AND WHICH CHANNELS ON IT, BY NAME. Named freely now, so
+            # this is what keeps a staging channel off the public wall -
+            # it can no longer be assumed that only one channel exists on
+            # a publishes-nowhere platform.
+            channels=cfg.gallery_extra_channels,
         )
     except Exception as exc:
         raise HTTPException(
