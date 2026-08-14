@@ -39,6 +39,16 @@ platforms = ["instagram", "instagram_login"]
 # account on the platforms above, which is usually what is wanted.
 accounts = []
 
+# AND NARROW BY CHANNEL NAME, which is what lets the front page come from
+# a channel that publishes NOWHERE instead of being a mirror of whatever
+# last went to a platform. `accounts` pins by UUID and exists to keep a
+# second brand off this site; this pins by the name a person reads in
+# Brightbean, so it can be written and checked without looking a UUID up.
+#
+# Empty means every account on the platforms above - the behaviour before
+# named channels existed.
+channels = []
+
 limit = 30
 
 
@@ -53,6 +63,32 @@ limit = 30
 # handed it.
 base = "https://files.wingert.dev"
 prefix = "/media/"
+
+
+# ---------------------------------------------------------------------
+# The picture wall.
+# ---------------------------------------------------------------------
+#
+# A page with kind = "gallery" shows every picture the club has
+# PUBLISHED - deliberately NOT the media library, which holds drafts,
+# rejects and unused uploads, and would put all of that on the internet
+# in a way that looked like a feature rather than a leak.
+#
+# By default the wall shows exactly what the feed does. These two widen
+# it, so a photograph can reach the wall WITHOUT reaching the front page
+# - which is what is wanted for a hundred pictures from a flying day
+# that are not each a news item.
+
+[gallery]
+# Platforms the wall draws from on TOP of the feed's. A platform that
+# publishes nowhere is the useful case.
+extra_platforms = []
+
+# And which channels on them, BY NAME. This is REQUIRED rather than
+# optional as soon as more than one channel can exist on such a
+# platform: without it the wall sweeps up every channel there - the one
+# the front page comes from, and any staging channel made later.
+extra_channels = []
 
 
 # ---------------------------------------------------------------------
