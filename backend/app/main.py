@@ -155,6 +155,13 @@ def gallery() -> dict:
             workspace=cfg.workspace,
             platforms=cfg.platforms,
             accounts=cfg.accounts,
+            # THE WALL DRAWS FROM MORE THAN AKTUELLES DOES. The club has a
+            # channel that publishes nowhere and exists only to put a
+            # picture on THIS page, so a photograph can reach the website
+            # without also reaching Instagram. These are included with no
+            # account filter, which is safe because such a platform can
+            # only ever hold one channel per workspace - see config.py.
+            open_platforms=cfg.gallery_extra_platforms,
         )
     except Exception as exc:
         raise HTTPException(

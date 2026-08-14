@@ -327,10 +327,29 @@ JOIN media_library_media_asset ma
   ON ma.id = pm.media_asset_id
 WHERE pp.status = 'published'
   AND p.workspace_id = %(workspace)s
-  AND sa.platform = ANY(%(platforms)s)
-  AND (%(accounts)s::uuid[] IS NULL
-       OR cardinality(%(accounts)s::uuid[]) = 0
-       OR sa.id = ANY(%(accounts)s::uuid[]))
+  -- TWO KINDS OF SOURCE, and the difference is who else could be on the
+  -- platform.
+  --
+  -- A SHARED platform is pinned to named accounts, because this workspace
+  -- holds more than one brand: without the pin, SkyMasters' Instagram
+  -- would appear on the club's own wall.
+  --
+  -- An OPEN platform needs no pin, because it cannot be anybody else's.
+  -- `impressionen` is the club's own picture wall: SocialAccount is
+  -- unique on (workspace, platform, account_platform_id) and that
+  -- provider reports a CONSTANT id, so there is exactly one such account
+  -- per workspace, for ever, by construction. Demanding its UUID here
+  -- would be asking somebody to look up a value that has only one
+  -- possible answer.
+  AND (
+        (
+          sa.platform = ANY(%(platforms)s)
+          AND (%(accounts)s::uuid[] IS NULL
+               OR cardinality(%(accounts)s::uuid[]) = 0
+               OR sa.id = ANY(%(accounts)s::uuid[]))
+        )
+        OR sa.platform = ANY(%(open_platforms)s)
+      )
   -- Stills only. A video in a photo grid is a black rectangle.
   AND ma.media_type IN ('image', 'gif')
 -- DISTINCT ON requires the distinct key to lead the ordering; the useful
@@ -339,14 +358,20 @@ ORDER BY ma.id, pp.published_at DESC NULLS LAST
 """
 
 
-def gallery(*, workspace: str, platforms: list[str],
-            accounts: list[str]) -> list[Media]:
-    """Every published picture, newest first."""
+def gallery(*, workspace: str, platforms: list[str], accounts: list[str],
+            open_platforms: list[str] | None = None) -> list[Media]:
+    """Every published picture, newest first.
+
+    `open_platforms` are included WITHOUT an account filter - see the
+    query. Defaulted rather than required, so the feed's own call and any
+    older caller behave exactly as before.
+    """
     with pool().connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(_GALLERY_SQL, {
             "workspace": uuid.UUID(workspace),
             "platforms": platforms,
             "accounts": [uuid.UUID(a) for a in accounts],
+            "open_platforms": list(open_platforms or []),
         })
         rows = cur.fetchall()
 

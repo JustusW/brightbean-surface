@@ -53,6 +53,25 @@ class Config:
     workspace: str
     platforms: list[str]
     accounts: list[str]
+    #: PLATFORMS THE GALLERY SHOWS ON TOP OF THE FEED'S, with NO account
+    #: filter - and the missing filter is the point rather than an
+    #: oversight.
+    #:
+    #: The club has a channel that publishes NOWHERE (see Brightbean's
+    #: providers/impressionen.py): a picture posted to it should land on
+    #: the Impressionen wall and NOT in Aktuelles, where a captionless
+    #: photograph would sit among the news pretending to be some.
+    #:
+    #: `accounts` above exists to keep a second brand's Instagram off this
+    #: club's site - a problem SHARED platforms have. A platform listed
+    #: here cannot be anybody else's: SocialAccount is unique on
+    #: (workspace, platform, account_platform_id) and that provider
+    #: reports a constant id, so there is exactly one such channel per
+    #: workspace, for ever.
+    #:
+    #: Empty means the wall shows exactly what the feed does, which is how
+    #: this behaved before any of it existed.
+    gallery_extra_platforms: list[str]
     limit: int
     media_base: str
     media_prefix: str
@@ -117,6 +136,7 @@ def load(path: str | None = None) -> Config:
     site = raw.get("site") or {}
     feed = raw.get("feed") or {}
     media = raw.get("media") or {}
+    gallery = raw.get("gallery") or {}
 
     workspace = str(feed.get("workspace", "")).strip()
     if not workspace:
@@ -132,6 +152,20 @@ def load(path: str | None = None) -> Config:
             f"{file}: [feed] platforms is required. An empty list shows "
             "nothing, silently."
         )
+
+    accounts = [str(a) for a in (feed.get("accounts") or []) if str(a)]
+
+    # THE GALLERY MAY DRAW FROM MORE THAN THE FEED DOES, and shows exactly
+    # the feed when it says nothing - so this is invisible to any
+    # deployment that does not use it.
+    #
+    # DELIBERATELY NOT VALIDATED THE WAY [feed] IS. An empty [feed]
+    # platforms list is refused because it silently empties the front
+    # page; here, empty means "same as the feed", which is a useful
+    # answer rather than a broken one.
+    gallery_extra_platforms = [
+        str(p) for p in (gallery.get("extra_platforms") or []) if str(p)
+    ]
 
     pages: list[Page] = []
     for entry in raw.get("pages") or []:
@@ -170,7 +204,8 @@ def load(path: str | None = None) -> Config:
         tagline=str(site.get("tagline", "")),
         workspace=workspace,
         platforms=platforms,
-        accounts=[str(a) for a in (feed.get("accounts") or []) if str(a)],
+        accounts=accounts,
+        gallery_extra_platforms=gallery_extra_platforms,
         limit=int(feed.get("limit", 30)),
         media_base=str(media.get("base", "")),
         media_prefix=str(media.get("prefix", "/media/")),
