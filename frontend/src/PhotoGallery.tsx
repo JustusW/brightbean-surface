@@ -225,6 +225,37 @@ export default function PhotoGallery({
                  the correct shape when the alternative is another round
                  trip to find out which of the two attached. */
               onClick={() => setOpen(i)}
+              /* THE ASPECT RATIO, BEFORE THE PICTURE ARRIVES. This is one
+                 defect with two faces, and both were on the live site.
+                 
+                 A slide is `width: auto; height: 100%`, so its width comes
+                 from the image - and an <img> that has not loaded has no
+                 intrinsic size at all. MEASURED on the wall at 46
+                 pictures: 38 of 46 slides were ZERO pixels wide.
+                 
+                 FACE ONE, the layout. Swiper builds its snap grid from
+                 those widths and translated the wrapper to x=31340 - the
+                 whole strip parked 31,000px off screen, leaving a page
+                 that showed nothing but the blurred backdrop. Proven by
+                 setting these attributes on the live page and calling
+                 update(): x went 31340 -> 420 and the pictures appeared.
+                 
+                 FACE TWO, the payload. Zero-width slides all collapse to
+                 the SAME point, so the browser considers every one of
+                 them on screen and fetches the lot: 59 requests, 18.6 MB,
+                 11.1 seconds - with loading="lazy" set and doing nothing.
+                 I had reported lazy loading as working after measuring 8
+                 requests, which was the broken layout keeping slides out
+                 of view rather than laziness working.
+                 
+                 The numbers are the ORIGINAL dimensions; the served file
+                 is capped at 1920x1080, the same ratio, and only the
+                 ratio is used. Assets storing 0x0 - the WordPress imports
+                 - were backfilled from the files, because `|| undefined`
+                 here silently restores the old behaviour for any that
+                 lie. */
+              width={m.width || undefined}
+              height={m.height || undefined}
               src={m.url}
               /* Alt text comes from the media library, where somebody
                  wrote one. An empty alt is correct for a decorative image
