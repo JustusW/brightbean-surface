@@ -337,6 +337,14 @@ SELECT DISTINCT ON (ma.id)
     ma.height     AS height,
     ma.thumbnail  AS thumbnail,
     pm.alt_text   AS alt_text,
+    -- THE ORDER SOMEBODY ARRANGED THEM IN, carried so the wall can use
+    -- it. Without this the only sort key is published_at, and every
+    -- picture sharing a timestamp - which is every picture of one post -
+    -- fell back to whatever order DISTINCT ON produced. That order is
+    -- `ma.id`: a UUID. So a post's pictures appeared shuffled, and the
+    -- first thing on the wall was whichever asset happened to sort
+    -- lowest.
+    pm.position   AS position,
     pp.published_at AS published_at
 FROM composer_platform_post pp
 JOIN composer_post p
@@ -457,8 +465,20 @@ def gallery(*, workspace: str, platforms: list[str],
 
     # Newest first, done HERE because the query's ORDER BY belongs to
     # DISTINCT ON. None sorts last rather than raising on the comparison.
+    #
+    # AND THEN BY THE POSITION SOMEBODY CHOSE, which this did not do. The
+    # sort key was published_at alone; Python's sort is stable, so every
+    # picture of one post - all sharing that post's timestamp - kept the
+    # order the rows arrived in, and DISTINCT ON delivers them ordered by
+    # `ma.id`. A UUID. So each post's pictures were shuffled on the wall,
+    # and a freshly published set led with whichever asset sorted lowest
+    # rather than with the picture chosen to go first.
+    #
+    # reverse=True would flip the position too, so it is negated instead
+    # of reversed: newest date first, but position 0 before position 1.
     rows.sort(key=lambda r: (r["published_at"] is not None,
-                             r["published_at"]), reverse=True)
+                             r["published_at"],
+                             -(r["position"] or 0)), reverse=True)
 
     return [
         Media(
