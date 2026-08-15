@@ -106,6 +106,23 @@ class Config:
     #: Empty means every channel on those platforms - which is how this
     #: behaved while only one could exist.
     gallery_extra_channels: list[str]
+
+    #: WHICH CHANNELS THE WALL SHOWS, BY UUID - the pin a rename cannot
+    #: reach.
+    #:
+    #: extra_channels above pins by the name a person reads in Brightbean,
+    #: and that turned out to be a pin on something the application itself
+    #: rewrites: a channel's name is derived from its stored token, so a
+    #: routine health check renamed "Aktuelles" to the provider's default
+    #: overnight. The feed matched nothing and this wall silently widened
+    #: to swallow the front page's pictures - both failing without an
+    #: error, because nothing had failed.
+    #:
+    #: A UUID is not a label and nobody edits it. Where this is set it is
+    #: the authority; the name pin is kept for deployments that have not
+    #: moved over, and empty means every channel on those platforms, as
+    #: before.
+    gallery_accounts: list[str]
     limit: int
     media_base: str
     media_prefix: str
@@ -208,6 +225,13 @@ def load(path: str | None = None) -> Config:
     gallery_extra_channels = [
         str(c) for c in (gallery.get("extra_channels") or []) if str(c)
     ]
+    # NOT VALIDATED, like the two above and for the same reason: empty
+    # means "every channel on those platforms", which is a useful answer
+    # rather than a broken one - and it is what lets this key be added to
+    # the code before any deployment names anything in it.
+    gallery_accounts = [
+        str(a) for a in (gallery.get("accounts") or []) if str(a)
+    ]
 
     pages: list[Page] = []
     for entry in raw.get("pages") or []:
@@ -250,6 +274,7 @@ def load(path: str | None = None) -> Config:
         channels=channels,
         gallery_extra_platforms=gallery_extra_platforms,
         gallery_extra_channels=gallery_extra_channels,
+        gallery_accounts=gallery_accounts,
         limit=int(feed.get("limit", 30)),
         media_base=str(media.get("base", "")),
         media_prefix=str(media.get("prefix", "/media/")),

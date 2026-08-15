@@ -396,6 +396,22 @@ WHERE pp.status = 'published'
   -- A photograph reaches it by being posted there, and Aktuelles is the
   -- front page and nothing else.
   AND sa.platform = ANY(%(platforms)s)
+  -- BY UUID, AND THIS IS THE PIN THAT CANNOT BE RENAMED OUT FROM UNDER
+  -- THE SITE.
+  --
+  -- Pinning by NAME emptied the club's front page overnight. A channel's
+  -- name is derived from its stored token by ImpressionenProvider, and a
+  -- routine health check rewrote "Aktuelles" to the provider's default -
+  -- so the feed matched nothing and the wall silently widened to swallow
+  -- the front page's pictures. Nothing failed; a validation succeeded.
+  -- The name is a label a person edits; the id is the channel.
+  --
+  -- Empty means "every channel on those platforms", so a deployment that
+  -- says nothing behaves exactly as it did before this existed - which is
+  -- what lets this ship before the configuration names anything.
+  AND (%(accounts)s::uuid[] IS NULL
+       OR cardinality(%(accounts)s::uuid[]) = 0
+       OR sa.id = ANY(%(accounts)s::uuid[]))
   AND (%(channels)s::text[] IS NULL
        OR cardinality(%(channels)s::text[]) = 0
        OR sa.account_name = ANY(%(channels)s::text[]))
@@ -408,6 +424,7 @@ ORDER BY ma.id, pp.published_at DESC NULLS LAST
 
 
 def gallery(*, workspace: str, platforms: list[str],
+            accounts: list[str] | None = None,
             channels: list[str] | None = None) -> list[Media]:
     """Every picture published on the wall's own channels, newest first.
 
@@ -426,6 +443,14 @@ def gallery(*, workspace: str, platforms: list[str],
         cur.execute(_GALLERY_SQL, {
             "workspace": uuid.UUID(workspace),
             "platforms": platforms,
+            # EVERY PLACEHOLDER IN THE STATEMENT ABOVE HAS A KEY HERE, and
+            # that is checked deliberately rather than assumed: psycopg
+            # refuses to execute a statement naming a parameter it was not
+            # given, so a placeholder added without its key does not
+            # degrade to "unfiltered" - it takes the page down. That is
+            # exactly how the feed was blanked when %(channels)s was added
+            # to _FEED_SQL and feed() was not given it.
+            "accounts": [uuid.UUID(a) for a in (accounts or [])],
             "channels": list(channels or []),
         })
         rows = cur.fetchall()

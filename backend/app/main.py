@@ -170,6 +170,12 @@ def gallery() -> dict:
             # addition. Worth renaming; not worth a config mismatch
             # tonight.
             platforms=cfg.gallery_extra_platforms,
+            # AND WHICH CHANNELS, BY UUID. This is the pin that survives a
+            # rename - the name pin below could not, because a channel's
+            # name is derived from its stored token and a health check
+            # rewrote it overnight, widening this wall onto the front
+            # page's own channel without a word.
+            accounts=cfg.gallery_accounts,
             # AND WHICH CHANNELS ON IT, BY NAME. Named freely now, so
             # this is what keeps a staging channel off the public wall -
             # it can no longer be assumed that only one channel exists on
