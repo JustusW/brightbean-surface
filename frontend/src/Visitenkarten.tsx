@@ -71,13 +71,13 @@ const CLUB_EMAIL = "vfm-stutensee@gmx.de";
 
 const PEOPLE: Person[] = [
   {
-    role: "1. Vorsitzender",
+    role: "1. Vorstand",
     name: "Christian Reger",
     email: "Erster-Vorstand@modellflugstutensee.onmicrosoft.com",
     photo: "/vorstand-christian.jpg",
   },
   {
-    role: "2. Vorsitzender",
+    role: "2. Vorstand",
     name: "Wolfgang Müller",
     email: "Zweiter-Vorstand@modellflugstutensee.onmicrosoft.com",
     // NO PHOTOGRAPH SUPPLIED for this one, so the card draws the lucide
