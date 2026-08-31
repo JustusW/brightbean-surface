@@ -2183,8 +2183,16 @@ main > .empty { margin-top: 40px; }
    card leads with the face. 84px is the same order as a passport photo
    on a business card and survives being looked at on a phone. */
 .vkartebild {
-  width: 84px;
-  height: 84px;
+  /* 168, DOUBLE THE 84 THIS WAS. 84 is passport-photo scale on a business
+     card; at 442px-wide cards there is room for a face somebody can
+     actually recognise before they walk up to it at the field.
+
+     notes/crop_faces.py FOLLOWS THIS NUMBER. The sources are cut at 512
+     square, which is 3x this with a little to spare - they were 320 for
+     the 84px version, and left at 320 they would be under 2x here and
+     visibly soft on a phone. Change one and change the other. */
+  width: 168px;
+  height: 168px;
   border-radius: 50%;
   flex: none;
   margin-bottom: 14px;
@@ -2261,7 +2269,9 @@ img.vkartebild {
      the address — see the note on the font size below. The vertical
      padding is unchanged; this is not about making the card tighter. */
   .vkarte { padding: 20px 12px 14px; }
-  .vkartebild { width: 72px; height: 72px; }
+  /* 144, double the 72 this was, following the 84 -> 168 on the desktop
+     rule. Still comfortably inside a 358px card on a 390px phone. */
+  .vkartebild { width: 144px; height: 144px; }
 
   /* AND SMALLER AGAIN ON A PHONE, because the cards stop being 442px.
      At 390px the column is 358, so the card's inner width is about 326
