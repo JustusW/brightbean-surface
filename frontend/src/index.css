@@ -2257,8 +2257,22 @@ img.vkartebild {
 .vkartekontakt svg { flex: none; }
 
 @media (max-width: 780px) {
-  .vkarte { padding: 20px 16px 14px; }
+  /* 12px of side padding rather than 16, which is eight more pixels for
+     the address — see the note on the font size below. The vertical
+     padding is unchanged; this is not about making the card tighter. */
+  .vkarte { padding: 20px 12px 14px; }
   .vkartebild { width: 72px; height: 72px; }
+
+  /* AND SMALLER AGAIN ON A PHONE, because the cards stop being 442px.
+     At 390px the column is 358, so the card's inner width is about 326
+     and the text gets roughly 301 of it once the icon and gap are off.
+     The address breaks at its hyphen — which is fine and reads as an
+     address — but the second half,
+     "Verwaltung@modellflugstutensee.onmicrosoft.com", is 46 characters,
+     about 308px of Inter at 13.5. Seven pixels over, so the final
+     character wrapped ALONE onto a third line. Measured on the deployed
+     page at 390x844, not reasoned about. 12.5 fits it with room. */
+  .vkartekontakt a { font-size: 12.5px; }
 }
 
 /* ---- the members' forum ------------------------------------------------
