@@ -5,7 +5,7 @@ direkt Kontakt zu uns auf. Wir freuen uns darauf, von Ihnen zu hören.
 
 **E-Mail:** [vfm-stutensee@gmx.de](mailto:vfm-stutensee@gmx.de)
 
-**Telefon:** [+49 721 68023416](tel:+4972168023416)
+**Telefon:** [+49 160 8130805](tel:+491608130805)
 
 Wo der Platz liegt und wie Sie hinkommen, steht unter
 [Platz und Anfahrt](/platz).

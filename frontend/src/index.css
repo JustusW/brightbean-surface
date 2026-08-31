@@ -2145,9 +2145,23 @@ main > .empty { margin-top: 40px; }
 
 .vkartengrid {
   display: grid;
-  /* Three across the 900px column, and they fold to two and then one on
-     the way down to a phone without a breakpoint having to say so. */
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  /* TWO ACROSS THE 900px COLUMN, folding to one on a phone without a
+     breakpoint having to say so.
+
+     IT WAS minmax(210px, 1fr) - three, then four once the fourth officer
+     arrived - AND THE ADDRESSES DID NOT FIT. A 210px card has about 174px
+     of inner width; the club's mailboxes run to 55 characters
+     (Vorstand-Verwaltung@modellflugstutensee.onmicrosoft.com), so
+     `overflow-wrap: anywhere` broke them mid-token across three lines:
+     "stutensee.onmicrosof / t.com". That reads as corruption rather than
+     as an address, and it was live.
+
+     No amount of tuning the font fixes four-across - 55 characters in
+     174px needs about 3px of type. 380 is the smallest minimum that
+     yields two columns at 900 (2 x 380 + 16 = 776 fits, 3 x 380 + 32 =
+     1172 does not), which makes each card 442px and puts the longest
+     address on one line. */
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: 16px;
 }
 
@@ -2224,10 +2238,19 @@ img.vkartebild {
   /* 44px, like every other tap target here: this is used outdoors, on a
      phone, by somebody trying to reach the club. */
   min-height: 44px;
-  font-size: 14.5px;
+  /* 13.5 rather than 14.5, and it is the margin that keeps the longest
+     address on ONE line in a 442px card: 55 characters is about 396px of
+     Inter at 14.5 against roughly 381px of usable width once the icon and
+     its gap are taken off, so it wrapped - and `overflow-wrap: anywhere`
+     wraps it mid-token. A contact line is secondary text and reads
+     perfectly well at 13.5; the 44px tap target above is untouched. */
+  font-size: 13.5px;
   text-decoration: none;
   color: var(--sky-deep);
   border-radius: 8px;
+  /* Kept, as the last resort for an address longer than anything the club
+     has today - a card that overflows its own edge is worse than one that
+     breaks a word. */
   overflow-wrap: anywhere;
 }
 .vkartekontakt a:hover { background: var(--wash); text-decoration: underline; }
