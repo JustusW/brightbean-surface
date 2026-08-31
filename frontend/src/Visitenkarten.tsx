@@ -66,8 +66,21 @@ interface Person {
   photo?: string;
 }
 
-/** The club's own, already on the Kontakt page and in the Impressum. */
-const CLUB_EMAIL = "vfm-stutensee@gmx.de";
+/** The club's own, already on the Kontakt page and in the Impressum.
+ *
+ *  IT IS THE 1. VORSTAND'S MAILBOX NOW, not vfm-stutensee@gmx.de. The
+ *  club moved off gmx on 31/08/2026 and all four places the old address
+ *  appeared — here, kontakt.md, impressum.md and the verantwortliche
+ *  Stelle in datenschutz.md — were changed together, because leaving it
+ *  in some and not others is how a website ends up publishing two
+ *  different contact addresses and meaning neither.
+ *
+ *  NOTHING RENDERS THIS TODAY. Every entry in PEOPLE carries an explicit
+ *  address, so the `|| CLUB_EMAIL` fallback never fires. It is kept
+ *  because a half-filled card should still be usable — and it is kept
+ *  CORRECT for the same reason a dead branch is still worth not lying
+ *  in. */
+const CLUB_EMAIL = "Erster-Vorstand@modellflugstutensee.onmicrosoft.com";
 
 const PEOPLE: Person[] = [
   {
