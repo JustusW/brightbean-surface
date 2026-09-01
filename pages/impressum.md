@@ -7,7 +7,7 @@ Angaben gemäß § 5 TMG.
 Hauptstraße 88
 76684 Östringen
 
-E-Mail: [Erster-Vorstand@modellflugstutensee.onmicrosoft.com](mailto:Erster-Vorstand@modellflugstutensee.onmicrosoft.com)
+E-Mail: [Erster-Vorstand@vfm-stutensee.de](mailto:Erster-Vorstand@vfm-stutensee.de)
 
 ## Vertretungsberechtigter Vorstand
 

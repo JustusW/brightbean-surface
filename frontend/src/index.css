@@ -2150,17 +2150,28 @@ main > .empty { margin-top: 40px; }
 
      IT WAS minmax(210px, 1fr) - three, then four once the fourth officer
      arrived - AND THE ADDRESSES DID NOT FIT. A 210px card has about 174px
-     of inner width; the club's mailboxes run to 55 characters
+     of inner width; the mailboxes were then 55 characters
      (Vorstand-Verwaltung@modellflugstutensee.onmicrosoft.com), so
      `overflow-wrap: anywhere` broke them mid-token across three lines:
      "stutensee.onmicrosof / t.com". That reads as corruption rather than
      as an address, and it was live.
 
-     No amount of tuning the font fixes four-across - 55 characters in
-     174px needs about 3px of type. 380 is the smallest minimum that
-     yields two columns at 900 (2 x 380 + 16 = 776 fits, 3 x 380 + 32 =
-     1172 does not), which makes each card 442px and puts the longest
-     address on one line. */
+     THE ADDRESSES ARE SHORTER NOW - the club moved onto vfm-stutensee.de,
+     and the longest is 36 characters
+     (Vorstand-Verwaltung@vfm-stutensee.de) - SO WHY IS THIS STILL 380?
+
+     Because three across still does not fit with any margin worth having.
+     Three columns at 900 give a 289px card, about 253px inside the
+     padding and 228px once the icon and its gap come off; 36 characters
+     is roughly 241px of Inter at 13.5, so it wraps, and it only stops
+     wrapping by dropping the type to 12.5 - which leaves five pixels in
+     hand. Five pixels is how this page acquired two separate wrapping
+     defects already, both found on the LIVE site rather than in a build.
+
+     380 is the smallest minimum that yields two columns at 900 (2 x 380 +
+     16 = 776 fits, 3 x 380 + 32 = 1172 does not), which makes each card
+     442px and leaves about 140px of slack on the longest address. With
+     five people that lands as 2 + 2 + 1. */
   grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: 16px;
 }
@@ -2246,13 +2257,15 @@ img.vkartebild {
   /* 44px, like every other tap target here: this is used outdoors, on a
      phone, by somebody trying to reach the club. */
   min-height: 44px;
-  /* 13.5 rather than 14.5, and it is the margin that keeps the longest
-     address on ONE line in a 442px card: 55 characters is about 396px of
-     Inter at 14.5 against roughly 381px of usable width once the icon and
-     its gap are taken off, so it wrapped - and `overflow-wrap: anywhere`
-     wraps it mid-token. A contact line is secondary text and reads
-     perfectly well at 13.5; the 44px tap target above is untouched. */
-  font-size: 13.5px;
+  /* BACK TO 14.5, WHICH IS WHERE IT STARTED. It was dropped to 13.5 to
+     keep a 55-character onmicrosoft.com address on one line in a 442px
+     card - 396px of Inter at 14.5 against roughly 381px of usable width
+     once the icon and its gap come off. That was a workaround, and its
+     cause is gone: on vfm-stutensee.de the longest address is 36
+     characters, about 259px, with 120px to spare. Carrying the smaller
+     type anyway would be tuning justified by a constraint that no longer
+     exists, which is the kind of thing nobody dares undo later. */
+  font-size: 14.5px;
   text-decoration: none;
   color: var(--sky-deep);
   border-radius: 8px;
@@ -2265,24 +2278,25 @@ img.vkartebild {
 .vkartekontakt svg { flex: none; }
 
 @media (max-width: 780px) {
-  /* 12px of side padding rather than 16, which is eight more pixels for
-     the address — see the note on the font size below. The vertical
-     padding is unchanged; this is not about making the card tighter. */
-  .vkarte { padding: 20px 12px 14px; }
+  .vkarte { padding: 20px 16px 14px; }
   /* 144, double the 72 this was, following the 84 -> 168 on the desktop
      rule. Still comfortably inside a 358px card on a 390px phone. */
   .vkartebild { width: 144px; height: 144px; }
 
-  /* AND SMALLER AGAIN ON A PHONE, because the cards stop being 442px.
-     At 390px the column is 358, so the card's inner width is about 326
-     and the text gets roughly 301 of it once the icon and gap are off.
-     The address breaks at its hyphen — which is fine and reads as an
-     address — but the second half,
-     "Verwaltung@modellflugstutensee.onmicrosoft.com", is 46 characters,
-     about 308px of Inter at 13.5. Seven pixels over, so the final
-     character wrapped ALONE onto a third line. Measured on the deployed
-     page at 390x844, not reasoned about. 12.5 fits it with room. */
-  .vkartekontakt a { font-size: 12.5px; }
+  /* TWO PHONE WORKAROUNDS USED TO LIVE HERE AND ARE DELIBERATELY GONE:
+     12px of side padding instead of 16, and .vkartekontakt a at 12.5px.
+     Both existed for one measured symptom - at 390px the card is 358, so
+     about 301px of text width, and the old address broke at its hyphen
+     and then dropped its final "m" ALONE onto a third line, because
+     "Verwaltung@modellflugstutensee.onmicrosoft.com" is 46 characters and
+     roughly 308px of Inter at 13.5. Seven pixels over.
+
+     On vfm-stutensee.de the whole address is 36 characters, about 259px
+     at 14.5 - it does not even need the hyphen break, let alone the
+     squeeze. Reverting is the point rather than tidiness: a workaround
+     left standing after its cause has gone reads as a deliberate choice,
+     and the next person will preserve it for a reason that stopped being
+     true. */
 }
 
 /* ---- the members' forum ------------------------------------------------
