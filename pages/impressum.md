@@ -7,7 +7,7 @@ Angaben gemäß § 5 TMG.
 Hauptstraße 88
 76684 Östringen
 
-E-Mail: [Erster-Vorstand@vfm-stutensee.de](mailto:Erster-Vorstand@vfm-stutensee.de)
+E-Mail: [1-Vorstand@vfm-stutensee.de](mailto:1-Vorstand@vfm-stutensee.de)
 
 ## Vertretungsberechtigter Vorstand
 

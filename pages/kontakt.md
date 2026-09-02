@@ -3,7 +3,7 @@
 Besuchen Sie uns an unserem Flugplatz in Stutensee oder nehmen Sie
 direkt Kontakt zu uns auf. Wir freuen uns darauf, von Ihnen zu hören.
 
-**E-Mail:** [Erster-Vorstand@vfm-stutensee.de](mailto:Erster-Vorstand@vfm-stutensee.de)
+**E-Mail:** [1-Vorstand@vfm-stutensee.de](mailto:1-Vorstand@vfm-stutensee.de)
 
 **Telefon:** [+49 160 8130805](tel:+491608130805)
 

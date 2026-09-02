@@ -86,19 +86,28 @@ interface Person {
  *  because a half-filled card should still be usable — and it is kept
  *  CORRECT for the same reason a dead branch is still worth not lying
  *  in. */
-const CLUB_EMAIL = "Erster-Vorstand@vfm-stutensee.de";
+const CLUB_EMAIL = "1-Vorstand@vfm-stutensee.de";
 
+/* THE LOCAL PARTS ARE THE TENANT'S AND THE CLUB RENAMES THEM. These were
+   Erster-Vorstand@ and Zweiter-Vorstand@ until 02/09/2026, when they
+   became 1-Vorstand@ and 2-Vorstand@ - the other three were left alone.
+   Nothing about that is guessable, and a renamed mailbox does not
+   necessarily keep the old name as an alias, so a stale one here is a
+   contact address on a public page that silently goes nowhere.
+
+   COPY THEM FROM THE MICROSOFT USER LIST, verbatim, rather than deriving
+   them from a pattern: the pattern has already changed once. */
 const PEOPLE: Person[] = [
   {
     role: "1. Vorstand",
     name: "Christian Reger",
-    email: "Erster-Vorstand@vfm-stutensee.de",
+    email: "1-Vorstand@vfm-stutensee.de",
     photo: "/vorstand-christian.jpg",
   },
   {
     role: "2. Vorstand",
     name: "Wolfgang Müller",
-    email: "Zweiter-Vorstand@vfm-stutensee.de",
+    email: "2-Vorstand@vfm-stutensee.de",
     // NO PHOTOGRAPH SUPPLIED for this one, so the card draws the lucide
     // placeholder beside four real faces. That is the honest state and
     // not a bug to work around — see the note above about inventing
