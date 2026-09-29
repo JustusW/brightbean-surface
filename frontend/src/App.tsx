@@ -28,6 +28,7 @@ import ContactBubble from "./ContactBubble";
 import Hero from "./Hero";
 import Members from "./Members";
 import PhotoGallery from "./PhotoGallery";
+import Sponsoren from "./Sponsoren";
 import Visitenkarten from "./Visitenkarten";
 import { api } from "./api";
 import type { FeedItem, FeedMedia, PageContent, Site } from "./api";
@@ -309,6 +310,13 @@ function StaticPage({ site }: { site: Site | null }) {
   // package the bubble already pulls in.
   const withKarten = slug === "kontakt";
 
+  // AND MITGLIEDSCHAFT GETS THE SPONSORS' LOGOS, by the same route and
+  // for the same reason: Markdown renders to HTML, and these two have to
+  // swap with the theme — black on the light design, white on the dark
+  // one — which is a contractual requirement rather than a preference.
+  // See Sponsoren.tsx.
+  const withSponsoren = slug === "mitgliedschaft";
+
   return (
     <main>
       <section className="page">
@@ -343,6 +351,7 @@ function StaticPage({ site }: { site: Site | null }) {
           </Suspense>
         )}
         {withKarten && page && <Visitenkarten />}
+        {withSponsoren && page && <Sponsoren />}
       </section>
     </main>
   );

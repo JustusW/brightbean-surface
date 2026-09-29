@@ -30,6 +30,23 @@ Der Mitgliedsbeitrag und sonstige Gebühren werden in der jährlichen
 Mitgliederversammlung festgelegt. Informationen erhältst Du vom
 Vorstand.
 
+## Digitale Mitgliedsausweise
+
+Künftig bequem in der Wallet und als PDF.
+
+Wir stellen unsere Mitgliedsausweise auf digital um. Künftig erhalten
+unsere Mitglieder ihren Ausweis als Wallet-Karte für Apple Wallet bzw.
+Google Wallet und zusätzlich als PDF.
+
+Damit ist der Ausweis auf dem Smartphone oder als Datei schnell
+verfügbar — zum Beispiel bei Vereinsveranstaltungen und auf dem
+Fluggelände.
+
+Die digitalen Ausweise werden mit freundlicher Unterstützung der
+Karlsruher Softwarefirma [LET'S DEV](https://www.letsdev.de) und ihres
+Produkts [Kortpress](https://www.kortpress.io) erstellt. Wir bedanken uns
+herzlich bei beiden Partnern für diese Unterstützung.
+
 ## Unsere Satzung
 
 Unsere Satzung regelt unser Vereinsleben und garantiert mit der
