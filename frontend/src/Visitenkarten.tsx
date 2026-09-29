@@ -2,9 +2,11 @@ import { CircleUserRound, Mail } from "lucide-react";
 
 /** The club's Ansprechpartner, as calling cards on the Kontakt page.
  *
- *  FIVE OF THEM: the four Vorstand and the Jugendleiter. It said "the
- *  Vorstand's cards" until Stefan Fies arrived, which was true then and
- *  would have been a small lie the moment it stopped being.
+ *  SIX OF THEM: the four Vorstand, the Jugendleiter and the
+ *  Ehrenvorsitzender. It said "the Vorstand's cards" until Stefan Fies
+ *  arrived, which was true then and would have been a small lie the
+ *  moment it stopped being — and the section is called "Ansprechpartner"
+ *  precisely so it can hold all three kinds.
  *
  *  TWO ACROSS, NOT THREE OR FOUR, AND THAT IS STILL FORCED BY THE
  *  ADDRESSES even though they got much shorter. See .vkartengrid in
@@ -15,7 +17,9 @@ import { CircleUserRound, Mail } from "lucide-react";
  *  "just barely" that produced two separate wrapping defects on this page
  *  already. Two across gives 442px cards and 140px of slack.
  *
- *  Five cards in two columns lands as 2 + 2 + 1, with the last one alone.
+ *  Six cards in two columns is three full rows. Five left the last card
+ *  alone in the left-hand column, which read as an odd one out; the sixth
+ *  closes it, by arithmetic rather than by design.
  *
  *  THE ADDRESSES ARE ON vfm-stutensee.de, AND THAT DOMAIN IS REALLY ON
  *  MICROSOFT — measured 01/09/2026 before changing a single one of them,
@@ -38,8 +42,20 @@ import { CircleUserRound, Mail } from "lucide-react";
  *  put vfm-stutensee.de on the tenant instead. If the addresses ever look
  *  wrong again, the three records above are how to check before editing.
  *
+ *  A CARD MAY PUBLISH NO CONTACT DETAILS AT ALL, and the Ehrenvorsitzender
+ *  is why. "Kontaktdaten erfassen wir keine." So `email` is optional and
+ *  the contact line is simply not rendered when there is none.
+ *
+ *  THE SHARED-ADDRESS FALLBACK IS GONE BECAUSE OF THAT. It used to read
+ *  `p.email || CLUB_EMAIL`, which would have quietly printed the 1.
+ *  Vorstand's mailbox under Joachim Ruf's name — turning "we publish no
+ *  contact details for him" into "write to Christian about him", which is
+ *  not the same statement and was not anybody's decision. A missing
+ *  address now shows nothing, which is the honest rendering of a missing
+ *  address.
+ *
  *  WOLFGANG MÜLLER HAS NO PHOTOGRAPH, so his card keeps the placeholder
- *  icon beside four real faces. Visibly incomplete is the honest state;
+ *  icon beside five real faces. Visibly incomplete is the honest state;
  *  it is not a defect to route around.
  *
  *  NO TELEPHONE NUMBER ON ANY CARD. There was a `phone` field with a
@@ -57,36 +73,22 @@ import { CircleUserRound, Mail } from "lucide-react";
  *  That script holds the measured face positions, and the box sizes that
  *  keep every head the same fraction of its circle.
  *
- *  TO CHANGE THIS: edit PEOPLE. An empty `email` falls back to the club's
- *  shared address, so a half-filled card is still a usable one.
+ *  TO CHANGE THIS: edit PEOPLE. Omit `email` entirely for somebody who
+ *  publishes none; there is no fallback and that is deliberate.
  */
 
 interface Person {
   /** What they do for the club — "1. Vorstand", "Jugendleiter", … */
   role: string;
   name: string;
-  /** Leave empty to fall back to the club's shared address. */
-  email: string;
+  /** OMIT IT ENTIRELY for somebody who publishes no contact details.
+   *  There is no fallback: an absent address renders no contact line at
+   *  all, rather than printing somebody else's. */
+  email?: string;
   /** A vendored photograph in public/, when there is one. Until then
    *  the card draws the placeholder icon. */
   photo?: string;
 }
-
-/** The club's own, already on the Kontakt page and in the Impressum.
- *
- *  IT IS THE 1. VORSTAND'S MAILBOX, not a shared one. The club moved off
- *  vfm-stutensee@gmx.de on 31/08/2026, and off the tenant's
- *  onmicrosoft.com default onto vfm-stutensee.de on 01/09/2026 — every
- *  place the address appears was changed together each time, because
- *  leaving it in some and not others is how a website ends up publishing
- *  two contact addresses and meaning neither.
- *
- *  NOTHING RENDERS THIS TODAY. Every entry in PEOPLE carries an explicit
- *  address, so the `|| CLUB_EMAIL` fallback never fires. It is kept
- *  because a half-filled card should still be usable — and it is kept
- *  CORRECT for the same reason a dead branch is still worth not lying
- *  in. */
-const CLUB_EMAIL = "1-Vorstand@vfm-stutensee.de";
 
 /* THE LOCAL PARTS ARE THE TENANT'S AND THE CLUB RENAMES THEM. These were
    Erster-Vorstand@ and Zweiter-Vorstand@ until 02/09/2026, when they
@@ -109,7 +111,7 @@ const PEOPLE: Person[] = [
     name: "Wolfgang Müller",
     email: "2-Vorstand@vfm-stutensee.de",
     // NO PHOTOGRAPH SUPPLIED for this one, so the card draws the lucide
-    // placeholder beside four real faces. That is the honest state and
+    // placeholder beside five real faces. That is the honest state and
     // not a bug to work around — see the note above about inventing
     // people. One more file in public/ and one line here fixes it.
   },
@@ -135,6 +137,19 @@ const PEOPLE: Person[] = [
     email: "Jugendleiter@vfm-stutensee.de",
     photo: "/jugendleiter-stefan.jpg",
   },
+  {
+    // NO `email`, ON INSTRUCTION: "Kontaktdaten erfassen wir keine." The
+    // card shows his name, his title and his face, and no way to write to
+    // him — which is exactly what was asked for. Before this, an omitted
+    // address fell back to the club's shared mailbox, so leaving it out
+    // would have published the 1. Vorstand's address under his name.
+    //
+    // LAST, because the list runs in order of who to contact and he is
+    // explicitly not a contact. It is not a ranking.
+    role: "Ehrenvorsitzender",
+    name: "Joachim Ruf",
+    photo: "/ehrenvorsitzender-joachim.jpg",
+  },
 ];
 
 export default function Visitenkarten() {
@@ -143,47 +158,48 @@ export default function Visitenkarten() {
       <h2>Ansprechpartner</h2>
 
       <div className="vkartengrid">
-        {PEOPLE.map((p, i) => {
-          const email = p.email || CLUB_EMAIL;
-          return (
-            <article className="vkarte" key={i}>
-              {p.photo ? (
-                <img
-                  className="vkartebild"
-                  src={p.photo}
-                  alt={p.name ? `Foto von ${p.name}` : ""}
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : (
-                /* aria-hidden: it is a placeholder for a face, not
-                   information. The name below is what a screen reader
-                   should read, and when there is no name it says so. */
-                <CircleUserRound
-                  className="vkartebild platzhalter"
-                  aria-hidden="true"
-                  strokeWidth={1.25}
-                />
-              )}
+        {PEOPLE.map((p, i) => (
+          <article className="vkarte" key={i}>
+            {p.photo ? (
+              <img
+                className="vkartebild"
+                src={p.photo}
+                alt={p.name ? `Foto von ${p.name}` : ""}
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              /* aria-hidden: it is a placeholder for a face, not
+                 information. The name below is what a screen reader
+                 should read, and when there is no name it says so. */
+              <CircleUserRound
+                className="vkartebild platzhalter"
+                aria-hidden="true"
+                strokeWidth={1.25}
+              />
+            )}
 
-              <h3 className={p.name ? "" : "offen"}>
-                {p.name || "Name folgt"}
-              </h3>
-              <p className={`vkarterolle${p.role ? "" : " offen"}`}>
-                {p.role || "Funktion folgt"}
-              </p>
+            <h3 className={p.name ? "" : "offen"}>
+              {p.name || "Name folgt"}
+            </h3>
+            <p className={`vkarterolle${p.role ? "" : " offen"}`}>
+              {p.role || "Funktion folgt"}
+            </p>
 
+            {/* NOTHING AT ALL when there is no address — not a blank line
+                and not a fallback. See the note on Person.email. */}
+            {p.email && (
               <p className="vkartekontakt">
                 {/* 44px of hit area, like every other control here: this
                     is tapped on a phone, often outdoors. */}
-                <a href={`mailto:${email}`}>
+                <a href={`mailto:${p.email}`}>
                   <Mail aria-hidden="true" size={17} />
-                  {email}
+                  {p.email}
                 </a>
               </p>
-            </article>
-          );
-        })}
+            )}
+          </article>
+        ))}
       </div>
     </section>
   );
