@@ -54,9 +54,16 @@ import { CircleUserRound, Mail } from "lucide-react";
  *  address now shows nothing, which is the honest rendering of a missing
  *  address.
  *
- *  WOLFGANG MÜLLER HAS NO PHOTOGRAPH, so his card keeps the placeholder
- *  icon beside five real faces. Visibly incomplete is the honest state;
- *  it is not a defect to route around.
+ *  ALL SIX HAVE A PHOTOGRAPH NOW. Wolfgang Müller's arrived on
+ *  11/10/2026 and was the last one outstanding; for six weeks his card
+ *  carried the placeholder icon beside the others, which was the honest
+ *  rendering of a missing picture rather than a defect.
+ *
+ *  THE PLACEHOLDER BRANCH IS THEREFORE UNEXERCISED, AND IT STAYS. It is
+ *  not dead code - it is what the next card looks like between being
+ *  added and being photographed, which has now happened twice. Deleting
+ *  it would mean the next addition either waits for a picture or ships a
+ *  broken image.
  *
  *  NO TELEPHONE NUMBER ON ANY CARD. There was a `phone` field with a
  *  fallback to the club's shared number, which meant every card drew the
@@ -110,10 +117,7 @@ const PEOPLE: Person[] = [
     role: "2. Vorstand",
     name: "Wolfgang Müller",
     email: "2-Vorstand@vfm-stutensee.de",
-    // NO PHOTOGRAPH SUPPLIED for this one, so the card draws the lucide
-    // placeholder beside five real faces. That is the honest state and
-    // not a bug to work around — see the note above about inventing
-    // people. One more file in public/ and one line here fixes it.
+    photo: "/vorstand-wolfgang.jpg",
   },
   {
     role: "Vorstand Finanzen",
